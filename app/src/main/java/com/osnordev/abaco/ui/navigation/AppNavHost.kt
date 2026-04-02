@@ -17,11 +17,14 @@ import com.osnordev.abaco.ui.screens.charts.ChartsScreen
 import com.osnordev.abaco.ui.screens.contacts.ContactFormScreen
 import com.osnordev.abaco.ui.screens.contacts.ContactListScreen
 import com.osnordev.abaco.ui.screens.dashboard.DashboardScreen
+import com.osnordev.abaco.ui.screens.inventory.InventoryFormScreen
+import com.osnordev.abaco.ui.screens.inventory.InventoryListScreen
 import com.osnordev.abaco.ui.screens.journal.JournalEntryFormScreen
 import com.osnordev.abaco.ui.screens.journal.JournalEntryListScreen
 import com.osnordev.abaco.ui.screens.payments.PaymentDueListScreen
 import com.osnordev.abaco.ui.screens.qr.QrCodeScreen
 import com.osnordev.abaco.ui.screens.reports.ReportsScreen
+import com.osnordev.abaco.ui.screens.salary.SalaryScreen
 import com.osnordev.abaco.ui.screens.search.SearchScreen
 import com.osnordev.abaco.ui.screens.settings.SettingsScreen
 import com.osnordev.abaco.ui.screens.taxes.TaxScreen
@@ -46,7 +49,11 @@ fun AppNavHost(
         popExitTransition = { slideOutHorizontally(animationSpec = tween(SLIDE_DURATION_MS)) { it } }
     ) {
         composable(Screen.Dashboard.route) {
-            DashboardScreen(showCharts = false) // Charts moved to ChartsScreen
+            DashboardScreen(
+                showCharts = false,
+                onNavigateToJournal = { navController.navigate(Screen.Journal.route) { launchSingleTop = true } },
+                onNavigateToJournalForm = { navController.navigate("journal_form") }
+            )
         }
 
         composable(Screen.Transactions.route) {
@@ -86,6 +93,9 @@ fun AppNavHost(
         // Budgets
         composable(Screen.Budgets.route) { BudgetScreen() }
 
+        // Salary
+        composable(Screen.Salary.route) { SalaryScreen() }
+
         // Contacts
         composable(Screen.Contacts.route) {
             ContactListScreen(
@@ -108,6 +118,21 @@ fun AppNavHost(
         }
         composable("journal_form") {
             JournalEntryFormScreen(onNavigateBack = { navController.popBackStack() })
+        }
+
+        // Inventory
+        composable(Screen.Inventory.route) {
+            InventoryListScreen(
+                onAddItem = { navController.navigate(Screen.InventoryForm.createRoute()) },
+                onItemClick = { id -> navController.navigate(Screen.InventoryForm.createRoute(id)) }
+            )
+        }
+        composable(
+            route = Screen.InventoryForm.route,
+            arguments = listOf(navArgument("id") { type = NavType.LongType; defaultValue = -1L })
+        ) { backStackEntry ->
+            val id = backStackEntry.arguments?.getLong("id")?.takeIf { it != -1L }
+            InventoryFormScreen(itemId = id, onNavigateBack = { navController.popBackStack() })
         }
     }
 }

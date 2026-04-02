@@ -4,9 +4,13 @@ import android.content.Context
 import androidx.room.Room
 import com.osnordev.abaco.data.local.AppDatabase
 import com.osnordev.abaco.data.local.BudgetDao
+import com.osnordev.abaco.data.local.ChartOfAccountDao
 import com.osnordev.abaco.data.local.ContactDao
+import com.osnordev.abaco.data.local.InventoryDao
 import com.osnordev.abaco.data.local.JournalEntryDao
 import com.osnordev.abaco.data.local.MIGRATION_1_2
+import com.osnordev.abaco.data.local.MIGRATION_2_3
+import com.osnordev.abaco.data.local.MIGRATION_3_4
 import com.osnordev.abaco.data.local.PaymentDueDao
 import com.osnordev.abaco.data.local.RecurringTemplateDao
 import com.osnordev.abaco.data.local.TransactionDao
@@ -24,7 +28,6 @@ import javax.inject.Singleton
 object DatabaseModule {
 
     private const val DB_NAME = "abaco_database"
-    // Standard SQLite header magic bytes (first 16 bytes of an unencrypted SQLite file)
     private val SQLITE_HEADER = "SQLite format 3\u0000".toByteArray(Charsets.UTF_8)
 
     @Provides
@@ -33,8 +36,6 @@ object DatabaseModule {
         val passphrase = SQLiteDatabase.getBytes("abaco_default_key".toCharArray())
         val factory = SupportFactory(passphrase)
 
-        // Detect unencrypted SQLite file from a previous install and delete it.
-        // SQLCipher cannot open a plain SQLite file — this prevents the crash on upgrade.
         val dbFile = context.getDatabasePath(DB_NAME)
         if (dbFile.exists() && isPlainSqlite(dbFile)) {
             dbFile.delete()
@@ -44,12 +45,11 @@ object DatabaseModule {
 
         return Room.databaseBuilder(context, AppDatabase::class.java, DB_NAME)
             .openHelperFactory(factory)
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .fallbackToDestructiveMigration()
             .build()
     }
 
-    /** Returns true if the file starts with the standard SQLite3 header (i.e. not encrypted). */
     private fun isPlainSqlite(file: java.io.File): Boolean {
         return try {
             val header = ByteArray(16)
@@ -60,21 +60,12 @@ object DatabaseModule {
         }
     }
 
-    @Provides
-    fun provideTransactionDao(db: AppDatabase): TransactionDao = db.transactionDao()
-
-    @Provides
-    fun provideJournalEntryDao(db: AppDatabase): JournalEntryDao = db.journalEntryDao()
-
-    @Provides
-    fun providePaymentDueDao(db: AppDatabase): PaymentDueDao = db.paymentDueDao()
-
-    @Provides
-    fun provideBudgetDao(db: AppDatabase): BudgetDao = db.budgetDao()
-
-    @Provides
-    fun provideContactDao(db: AppDatabase): ContactDao = db.contactDao()
-
-    @Provides
-    fun provideRecurringTemplateDao(db: AppDatabase): RecurringTemplateDao = db.recurringTemplateDao()
+    @Provides fun provideTransactionDao(db: AppDatabase): TransactionDao = db.transactionDao()
+    @Provides fun provideJournalEntryDao(db: AppDatabase): JournalEntryDao = db.journalEntryDao()
+    @Provides fun providePaymentDueDao(db: AppDatabase): PaymentDueDao = db.paymentDueDao()
+    @Provides fun provideBudgetDao(db: AppDatabase): BudgetDao = db.budgetDao()
+    @Provides fun provideContactDao(db: AppDatabase): ContactDao = db.contactDao()
+    @Provides fun provideRecurringTemplateDao(db: AppDatabase): RecurringTemplateDao = db.recurringTemplateDao()
+    @Provides fun provideInventoryDao(db: AppDatabase): InventoryDao = db.inventoryDao()
+    @Provides fun provideChartOfAccountDao(db: AppDatabase): ChartOfAccountDao = db.chartOfAccountDao()
 }

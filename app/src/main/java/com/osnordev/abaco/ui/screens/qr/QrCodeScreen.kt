@@ -67,14 +67,20 @@ fun QrCodeScreen(
             onValueChange = viewModel::onAccountNumberChange,
             label = { Text("Número de cuenta bancaria") },
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true
+            singleLine = true,
+            isError = state.accountNumberError != null,
+            supportingText = state.accountNumberError?.let { { Text(it) } },
+            placeholder = { Text("16 dígitos") }
         )
         OutlinedTextField(
             value = state.phone,
             onValueChange = viewModel::onPhoneChange,
             label = { Text("Número de teléfono") },
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true
+            singleLine = true,
+            isError = state.phoneError != null,
+            supportingText = state.phoneError?.let { { Text(it) } },
+            placeholder = { Text("+53...") }
         )
         OutlinedTextField(
             value = state.holderName,

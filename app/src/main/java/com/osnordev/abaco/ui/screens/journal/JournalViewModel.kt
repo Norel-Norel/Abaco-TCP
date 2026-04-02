@@ -2,6 +2,7 @@ package com.osnordev.abaco.ui.screens.journal
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.osnordev.abaco.data.local.ChartOfAccountDao
 import com.osnordev.abaco.data.local.JournalEntryEntity
 import com.osnordev.abaco.data.local.JournalEntryWithLines
 import com.osnordev.abaco.data.local.JournalLineEntity
@@ -20,11 +21,18 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import javax.inject.Inject
 
+data class AccountSuggestion(val code: String, val name: String, val type: AccountType) {
+    val display: String get() = "$code - $name"
+}
+
 data class LineFormState(
+    val accountQuery: String = "",
     val accountName: String = "",
     val accountType: AccountType = AccountType.ASSET,
+    val partial: String = "",
     val debit: String = "",
-    val credit: String = ""
+    val credit: String = "",
+    val showSuggestions: Boolean = false
 )
 
 data class JournalFormUiState(
@@ -32,7 +40,10 @@ data class JournalFormUiState(
     val date: LocalDate = LocalDate.now(),
     val lines: List<LineFormState> = listOf(LineFormState(), LineFormState()),
     val validationError: String? = null,
+    val totalDebit: Double = 0.0,
+    val totalCredit: Double = 0.0,
     val difference: Double = 0.0,
+    val isBalanced: Boolean = false,
     val isSaving: Boolean = false,
     val saved: Boolean = false
 )
@@ -40,7 +51,8 @@ data class JournalFormUiState(
 @HiltViewModel
 class JournalViewModel @Inject constructor(
     private val getEntries: GetJournalEntriesUseCase,
-    private val insertEntry: InsertJournalEntryUseCase
+    private val insertEntry: InsertJournalEntryUseCase,
+    private val chartOfAccountDao: ChartOfAccountDao
 ) : ViewModel() {
 
     val entries: StateFlow<List<JournalEntryWithLines>> = getEntries()
@@ -50,42 +62,85 @@ class JournalViewModel @Inject constructor(
     val form: StateFlow<JournalFormUiState> = _form.asStateFlow()
 
     fun onDescriptionChange(v: String) = _form.update { it.copy(description = v) }
+    fun onDateChange(v: LocalDate) = _form.update { it.copy(date = v) }
 
-    fun onLineAccountNameChange(index: Int, v: String) = updateLine(index) { copy(accountName = v) }
-    fun onLineAccountTypeChange(index: Int, v: AccountType) = updateLine(index) { copy(accountType = v) }
-    fun onLineDebitChange(index: Int, v: String) = updateLine(index) { copy(debit = v) }
-    fun onLineCreditChange(index: Int, v: String) = updateLine(index) { copy(credit = v) }
+    /**
+     * Busca cuentas en la BD del plan de cuentas.
+     * Si la BD está vacía (instalación nueva sin migrar aún), devuelve lista vacía.
+     */
+    suspend fun getSuggestions(query: String): List<AccountSuggestion> {
+        val results = if (query.isBlank()) {
+            chartOfAccountDao.search("")
+        } else {
+            chartOfAccountDao.search(query)
+        }
+        return results.map { acc ->
+            AccountSuggestion(
+                code = acc.code,
+                name = acc.name,
+                type = acc.type
+            )
+        }
+    }
 
-    fun addLine() = _form.update { it.copy(lines = it.lines + LineFormState()) }
+    fun onAccountQueryChange(index: Int, query: String) = updateLine(index) {
+        copy(accountQuery = query, showSuggestions = query.isNotBlank())
+    }
+
+    fun onPartialChange(index: Int, v: String) = updateLine(index) { copy(partial = v) }
+
+    fun onAccountSelected(index: Int, suggestion: AccountSuggestion) = updateLine(index) {
+        copy(
+            accountQuery = suggestion.display,
+            accountName = suggestion.name,
+            accountType = suggestion.type,
+            showSuggestions = false
+        )
+    }
+
+    fun onSuggestionsHide(index: Int) = updateLine(index) { copy(showSuggestions = false) }
+
+    fun onDebitChange(index: Int, v: String) = updateLine(index) {
+        copy(debit = v, credit = if (v.isNotBlank()) "" else credit)
+    }.also { recalcTotals() }
+
+    fun onCreditChange(index: Int, v: String) = updateLine(index) {
+        copy(credit = v, debit = if (v.isNotBlank()) "" else debit)
+    }.also { recalcTotals() }
+
+    fun addLine() {
+        _form.update { it.copy(lines = it.lines + LineFormState()) }
+        recalcTotals()
+    }
 
     fun removeLine(index: Int) {
         if (_form.value.lines.size > 2) {
             _form.update { it.copy(lines = it.lines.toMutableList().also { l -> l.removeAt(index) }) }
+            recalcTotals()
         }
     }
 
     fun save() {
         val state = _form.value
+        if (!state.isBalanced) return
+
         val lines = state.lines.mapNotNull { l ->
             val debit = l.debit.toDoubleOrNull() ?: 0.0
             val credit = l.credit.toDoubleOrNull() ?: 0.0
-            if (l.accountName.isBlank()) null
+            val name = l.accountName.ifBlank { l.accountQuery.trim() }
+            if (name.isBlank()) null
             else JournalLineEntity(
                 entryId = 0,
-                accountName = l.accountName.trim(),
+                accountName = name,
                 accountType = l.accountType,
                 debit = debit,
                 credit = credit
             )
         }
-        val entry = JournalEntryEntity(
-            date = state.date,
-            description = state.description.trim()
-        )
+        val entry = JournalEntryEntity(date = state.date, description = state.description.trim())
         _form.update { it.copy(isSaving = true, validationError = null) }
         viewModelScope.launch {
-            val result = insertEntry(entry, lines)
-            when (result) {
+            when (val result = insertEntry(entry, lines)) {
                 is ValidationResult.Valid ->
                     _form.update { JournalFormUiState(saved = true) }
                 is ValidationResult.Invalid ->
@@ -96,10 +151,24 @@ class JournalViewModel @Inject constructor(
 
     fun resetForm() = _form.update { JournalFormUiState() }
 
-    private fun updateLine(index: Int, block: LineFormState.() -> LineFormState) {
+    private fun recalcTotals() {
+        _form.update { state ->
+            val totalDebit = state.lines.sumOf { it.debit.toDoubleOrNull() ?: 0.0 }
+            val totalCredit = state.lines.sumOf { it.credit.toDoubleOrNull() ?: 0.0 }
+            val diff = totalDebit - totalCredit
+            state.copy(
+                totalDebit = totalDebit,
+                totalCredit = totalCredit,
+                difference = diff,
+                isBalanced = Math.abs(diff) < 0.01 && totalDebit > 0
+            )
+        }
+    }
+
+    private fun updateLine(index: Int, block: LineFormState.() -> LineFormState): Unit {
         _form.update { state ->
             val updated = state.lines.toMutableList()
-            updated[index] = updated[index].block()
+            if (index in updated.indices) updated[index] = updated[index].block()
             state.copy(lines = updated)
         }
     }

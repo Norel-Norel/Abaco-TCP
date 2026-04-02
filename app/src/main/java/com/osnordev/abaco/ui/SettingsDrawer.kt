@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
@@ -64,6 +65,7 @@ fun SettingsDrawerContent(
     onProfileSave: (UserProfile) -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToQr: () -> Unit,
+    onNavigateToInventory: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showProfileDialog by remember { mutableStateOf(false) }
@@ -212,6 +214,12 @@ fun SettingsDrawerContent(
                 Icon(Icons.Filled.QrCode, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("QR de cobro")
+            }
+
+            TextButton(onClick = onNavigateToInventory, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Filled.Inventory, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Inventario")
             }
 
             TextButton(onClick = onNavigateToSettings, modifier = Modifier.fillMaxWidth()) {

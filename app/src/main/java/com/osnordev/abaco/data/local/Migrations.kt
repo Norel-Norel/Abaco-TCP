@@ -96,3 +96,73 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         """.trimIndent())
     }
 }
+
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS inventory_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                category TEXT NOT NULL DEFAULT '',
+                unit TEXT NOT NULL DEFAULT 'unidad',
+                quantity REAL NOT NULL DEFAULT 0.0,
+                minStock REAL NOT NULL DEFAULT 0.0,
+                costPrice REAL NOT NULL DEFAULT 0.0,
+                salePrice REAL NOT NULL DEFAULT 0.0,
+                updatedAt INTEGER NOT NULL DEFAULT 0
+            )
+        """.trimIndent())
+
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS inventory_movements (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                itemId INTEGER NOT NULL,
+                type TEXT NOT NULL,
+                quantity REAL NOT NULL,
+                note TEXT NOT NULL DEFAULT '',
+                date TEXT NOT NULL,
+                createdAt INTEGER NOT NULL DEFAULT 0
+            )
+        """.trimIndent())
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_inventory_movements_itemId ON inventory_movements(itemId)")
+    }
+}
+
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Crear tabla del plan de cuentas
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS chart_of_accounts (
+                code TEXT PRIMARY KEY NOT NULL,
+                name TEXT NOT NULL,
+                type TEXT NOT NULL,
+                nature TEXT NOT NULL,
+                parentCode TEXT,
+                isActive INTEGER NOT NULL DEFAULT 1
+            )
+        """.trimIndent())
+
+        // ── Cuentas principales ───────────────────────────────────────────
+        db.execSQL("INSERT OR IGNORE INTO chart_of_accounts VALUES ('100','Efectivo en Caja','ASSET','DEBIT',NULL,1)")
+        db.execSQL("INSERT OR IGNORE INTO chart_of_accounts VALUES ('110','Efectivo en Banco','ASSET','DEBIT',NULL,1)")
+        db.execSQL("INSERT OR IGNORE INTO chart_of_accounts VALUES ('183','Inventarios','ASSET','DEBIT',NULL,1)")
+        db.execSQL("INSERT OR IGNORE INTO chart_of_accounts VALUES ('240','Activos Fijos','ASSET','DEBIT',NULL,1)")
+        db.execSQL("INSERT OR IGNORE INTO chart_of_accounts VALUES ('410','Cuentas por Pagar','LIABILITY','CREDIT',NULL,1)")
+        db.execSQL("INSERT OR IGNORE INTO chart_of_accounts VALUES ('600','Patrimonio TCP','EQUITY','CREDIT',NULL,1)")
+        db.execSQL("INSERT OR IGNORE INTO chart_of_accounts VALUES ('800','Gastos de Operación','EXPENSE','DEBIT',NULL,1)")
+        db.execSQL("INSERT OR IGNORE INTO chart_of_accounts VALUES ('810','Impuestos y Tasas','EXPENSE','DEBIT',NULL,1)")
+        db.execSQL("INSERT OR IGNORE INTO chart_of_accounts VALUES ('900','Ingresos por Ventas','INCOME','CREDIT',NULL,1)")
+        db.execSQL("INSERT OR IGNORE INTO chart_of_accounts VALUES ('920','Ingresos Financieros','INCOME','CREDIT',NULL,1)")
+
+        // ── Subcuentas ────────────────────────────────────────────────────
+        db.execSQL("INSERT OR IGNORE INTO chart_of_accounts VALUES ('11020','Bonificación caja extra','ASSET','DEBIT','110',1)")
+        db.execSQL("INSERT OR IGNORE INTO chart_of_accounts VALUES ('80011000','Materias primas','EXPENSE','DEBIT','800',1)")
+        db.execSQL("INSERT OR IGNORE INTO chart_of_accounts VALUES ('80050000','Remuneración trabajadores','EXPENSE','DEBIT','800',1)")
+        db.execSQL("INSERT OR IGNORE INTO chart_of_accounts VALUES ('80080000','Arrendamiento de espacios','EXPENSE','DEBIT','800',1)")
+        db.execSQL("INSERT OR IGNORE INTO chart_of_accounts VALUES ('80050100','Servicio de Contabilidad','EXPENSE','DEBIT','800',1)")
+        db.execSQL("INSERT OR IGNORE INTO chart_of_accounts VALUES ('81010','Impuesto por ventas','EXPENSE','DEBIT','810',1)")
+        db.execSQL("INSERT OR IGNORE INTO chart_of_accounts VALUES ('81030','Impuesto fuerza trabajo','EXPENSE','DEBIT','810',1)")
+        db.execSQL("INSERT OR IGNORE INTO chart_of_accounts VALUES ('81040','Impuesto ingresos personales','EXPENSE','DEBIT','810',1)")
+    }
+}

@@ -19,6 +19,8 @@ Este documento consolida todos los requisitos de Ábaco Contabilidad, incluyendo
 14. **Onboarding**: pantallas de bienvenida para usuarios nuevos.
 15. **Multimoneda**: soporte para CUP, MLC y USD con tipo de cambio configurable.
 16. **Código QR de cobro**: generar QR con número de cuenta y teléfono del TCP para facilitar pagos.
+17. **Módulo de Inventario**: gestión de productos con control de stock, movimientos (entrada/salida/ajuste) y alertas de stock mínimo.
+18. **Nómina**: cálculo de salario neto, retenciones del empleado y aportes patronales según normas cubanas, con generación automática de asiento contable.
 
 ## Glosario
 
@@ -49,6 +51,7 @@ Este documento consolida todos los requisitos de Ábaco Contabilidad, incluyendo
 - **Dashboard**: Pantalla principal que muestra el resumen financiero mensual con gráficos.
 - **Sistema**: La aplicación móvil Ábaco.
 - **Usuario**: El TCP o emprendedor que utiliza la aplicación.
+- **TaxConfig**: Modelo de configuración tributaria con dos grupos de tasas: `cssRate` (CSS del TCP autónomo, 20% por defecto) y `cssEmployeeRate`/`cssEmployerRate` (retenciones de nómina, 5% y 12.5% respectivamente).
 
 ---
 
@@ -390,3 +393,44 @@ Este documento consolida todos los requisitos de Ábaco Contabilidad, incluyendo
 3. THE Sistema SHALL mostrar el código QR generado en pantalla completa con el nombre del titular visible debajo.
 4. WHEN el usuario pulsa compartir, THE Sistema SHALL exportar el código QR como imagen PNG y ofrecerlo para compartir por cualquier app del dispositivo.
 5. THE Sistema SHALL persistir los datos de cobro del usuario para no tener que ingresarlos cada vez.
+
+---
+
+### Requisito 25 — Validaciones del QR de cobro
+
+**User Story:** Como usuario, quiero que el sistema valide los datos del QR antes de generarlo, para evitar códigos con información incorrecta.
+
+#### Criterios de Aceptación
+
+1. WHEN el usuario ingresa el número de cuenta bancaria, THE Sistema SHALL validar que tenga exactamente 16 dígitos numéricos antes de generar el QR.
+2. WHEN el usuario ingresa el número de teléfono, THE Sistema SHALL validar que comience con el prefijo `+53` antes de generar el QR.
+3. WHEN alguna validación falla, THE Sistema SHALL mostrar un mensaje de error inline en el campo correspondiente sin generar el QR.
+
+---
+
+### Requisito 26 — Módulo de Inventario
+
+**User Story:** Como usuario, quiero gestionar el inventario de mis productos con control de stock y movimientos, para saber cuánto tengo disponible y recibir alertas cuando el stock sea bajo.
+
+#### Criterios de Aceptación
+
+1. WHEN el usuario crea un producto, THE Sistema SHALL persistir nombre, descripción, categoría, unidad de medida, cantidad inicial, stock mínimo, precio de costo y precio de venta en CUP.
+2. WHEN el usuario registra un movimiento de inventario, THE Sistema SHALL actualizar la cantidad del producto según el tipo: entrada (suma), salida (resta) o ajuste (reemplaza).
+3. WHEN la cantidad de un producto es menor o igual a su stock mínimo configurado, THE Sistema SHALL mostrar una alerta visual en la lista de inventario.
+4. THE Sistema SHALL mostrar una pestaña de "Stock bajo" que filtre únicamente los productos con cantidad ≤ stock mínimo.
+5. THE Sistema SHALL permitir buscar productos por nombre o categoría en tiempo real.
+6. WHEN el usuario elimina un producto, THE Sistema SHALL eliminar también sus movimientos asociados.
+
+---
+
+### Requisito 27 — Nómina de empleados
+
+**User Story:** Como usuario, quiero calcular el salario neto de mis empleados con todas las retenciones y aportes patronales según la normativa cubana, para gestionar correctamente mi nómina.
+
+#### Criterios de Aceptación
+
+1. WHEN el usuario ingresa el salario devengado de un empleado, THE Sistema SHALL calcular la retención de Seguridad Social del trabajador (5%), el IIP según escala ONAT y el salario neto a cobrar.
+2. WHEN el usuario calcula la nómina, THE Sistema SHALL calcular los aportes patronales: SS Patronal (12.5%), provisión de vacaciones (9.09%), provisión de subsidio (1.5%) y SS Especial (5%).
+3. WHEN el usuario genera el asiento contable de la nómina, THE Sistema SHALL crear un asiento de partida doble cuadrado donde los débitos (gastos de la empresa) sean iguales a los créditos (obligaciones y pagos).
+4. THE Sistema SHALL mostrar el costo total para la empresa como suma del salario devengado más todos los aportes patronales.
+5. THE Sistema SHALL usar `cssEmployeeRate` de `TaxConfig` para la retención del trabajador y `cssEmployerRate` para el aporte patronal, manteniendo `cssRate` para el cálculo de tributos del TCP autónomo.

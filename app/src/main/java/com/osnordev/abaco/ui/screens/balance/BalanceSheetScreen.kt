@@ -70,11 +70,10 @@ fun BalanceSheetScreen(
             return@Column
         }
 
-        // Export PDF button
         val context = LocalContext.current
         Button(
             onClick = {
-                sheet?.let {
+                sheet.let {
                     val uri = TrialBalancePdfExporter.export(context, it)
                     val intent = Intent(Intent.ACTION_SEND).apply {
                         type = "application/pdf"
@@ -90,10 +89,8 @@ fun BalanceSheetScreen(
             Text("  Exportar PDF")
         }
 
-        // Balance equation indicator
         BalanceIndicator(sheet)
 
-        // Sections
         BalanceSection(title = "Activos", accounts = sheet.assets, total = sheet.totalAssets)
         BalanceSection(title = "Pasivos", accounts = sheet.liabilities, total = sheet.totalLiabilities)
         BalanceSection(title = "Patrimonio / Resultados", accounts = sheet.equity, total = sheet.totalEquity)

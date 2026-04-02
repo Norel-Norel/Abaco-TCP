@@ -36,4 +36,10 @@ class Converters {
 
     @TypeConverter
     fun toContactType(value: String): ContactType = ContactType.valueOf(value)
+
+    @TypeConverter
+    fun fromInventoryMovementType(type: InventoryMovementType): String = type.name
+
+    @TypeConverter
+    fun toInventoryMovementType(value: String): InventoryMovementType = InventoryMovementType.valueOf(value)
 }

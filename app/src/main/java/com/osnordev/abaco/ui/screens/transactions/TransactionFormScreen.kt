@@ -96,6 +96,24 @@ fun TransactionFormScreen(
     var category by remember(existing) { mutableStateOf(existing?.category ?: IncomeCategory.SALES.label) }
     var description by remember(existing) { mutableStateOf(existing?.description ?: "") }
     var currency by remember(existing) { mutableStateOf(existing?.currency ?: Currency.CUP) }
+    // Exchange rate override — allows user to enter a custom rate for MLC/USD
+    var exchangeRateText by remember(currency, currencyConfig) {
+        mutableStateOf(
+            when (currency) {
+                Currency.MLC -> currencyConfig.mlcToCup.toString()
+                Currency.USD -> currencyConfig.usdToCup.toString()
+                Currency.CUP -> "1.0"
+            }
+        )
+    }
+    // Update rate text when currency changes
+    LaunchedEffect(currency) {
+        exchangeRateText = when (currency) {
+            Currency.MLC -> currencyConfig.mlcToCup.toString()
+            Currency.USD -> currencyConfig.usdToCup.toString()
+            Currency.CUP -> "1.0"
+        }
+    }
     var selectedContactId by remember(existing) { mutableStateOf(existing?.contactId) }
     var contactExpanded by remember { mutableStateOf(false) }
     var receiptImagePath by remember(existing) { mutableStateOf(existing?.receiptImagePath) }
@@ -195,7 +213,7 @@ fun TransactionFormScreen(
                         existing?.recurringId?.let { viewModel.cancelRecurring(it) }
                         submitForm(
                             existing, type, amountText, category, description, currency,
-                            selectedContactId, receiptImagePath, isRecurring,
+                            exchangeRateText, selectedContactId, receiptImagePath, isRecurring,
                             recurringFrequency, recurringStartDate, viewModel
                         ) { amountError = it }
                     }
@@ -210,7 +228,7 @@ fun TransactionFormScreen(
                     } else {
                         submitForm(
                             existing, type, amountText, category, description, currency,
-                            selectedContactId, receiptImagePath, false,
+                            exchangeRateText, selectedContactId, receiptImagePath, false,
                             recurringFrequency, recurringStartDate, viewModel
                         ) { amountError = it }
                     }
@@ -280,6 +298,27 @@ fun TransactionFormScreen(
                         label = { Text(c.name) }
                     )
                 }
+            }
+
+            // Exchange rate field — only shown for MLC and USD
+            if (currency != Currency.CUP) {
+                val rateLabel = if (currency == Currency.MLC) "Tasa MLC → CUP" else "Tasa USD → CUP"
+                OutlinedTextField(
+                    value = exchangeRateText,
+                    onValueChange = { exchangeRateText = it },
+                    label = { Text(rateLabel) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    supportingText = {
+                        val amount = amountText.toDoubleOrNull() ?: 0.0
+                        val rate = exchangeRateText.toDoubleOrNull() ?: 0.0
+                        val cup = amount * rate
+                        Text("≈ ${"%.2f".format(cup)} CUP",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary)
+                    }
+                )
             }
 
             // Category dropdown
@@ -447,7 +486,7 @@ fun TransactionFormScreen(
                     }
                     submitForm(
                         existing, type, amountText, category, description, currency,
-                        selectedContactId, receiptImagePath, isRecurring,
+                        exchangeRateText, selectedContactId, receiptImagePath, isRecurring,
                         recurringFrequency, recurringStartDate, viewModel
                     ) { amountError = it }
                     if (uiState.errorMessage == null) onNavigateBack()
@@ -477,6 +516,7 @@ private fun submitForm(
     category: String,
     description: String,
     currency: Currency,
+    exchangeRateText: String,
     selectedContactId: Long?,
     receiptImagePath: String?,
     isRecurring: Boolean,
@@ -490,6 +530,10 @@ private fun submitForm(
         onAmountError("El importe debe ser mayor que cero")
         return
     }
+    // Calculate amountCup using the exchange rate
+    val rate = exchangeRateText.toDoubleOrNull()?.takeIf { it > 0.0 } ?: 1.0
+    val amountCup = amount * rate
+
     val today = LocalDate.now()
     val transaction = Transaction(
         id = existing?.id ?: 0L,
@@ -501,7 +545,7 @@ private fun submitForm(
         year = existing?.year ?: today.year,
         month = existing?.month ?: today.monthValue,
         currency = currency,
-        amountCup = amount,
+        amountCup = amountCup,
         contactId = selectedContactId,
         receiptImagePath = receiptImagePath
     )

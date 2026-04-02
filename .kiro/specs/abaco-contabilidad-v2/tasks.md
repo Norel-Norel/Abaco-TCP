@@ -198,6 +198,9 @@
   - [x] 17.3 Crear `QrCodeViewModel` y `QrCodeScreen` con formulario, visualización del QR y botón de compartir
     - Persistir datos de cobro en DataStore para no reingresarlos
     - _Requisitos: 24.1, 24.3, 24.4, 24.5_
+  - [x] 17.4 Agregar validaciones en `QrCodeViewModel.generateQr()`: cuenta bancaria exactamente 16 dígitos numéricos, teléfono debe comenzar con `+53`
+    - Mostrar errores inline en `QrCodeScreen` con `isError` y `supportingText`
+    - _Requisitos: 25.1, 25.2, 25.3_
 
 - [x] 18. Implementar Widget de Android
   - [x] 18.1 Crear `AbacoWidget` (AppWidgetProvider) que muestre ingresos, gastos y utilidad neta del período

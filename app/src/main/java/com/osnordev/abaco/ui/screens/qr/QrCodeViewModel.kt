@@ -28,7 +28,9 @@ data class QrUiState(
     val accountNumber: String = "",
     val phone: String = "",
     val holderName: String = "",
-    val qrBitmap: Bitmap? = null
+    val qrBitmap: Bitmap? = null,
+    val accountNumberError: String? = null,
+    val phoneError: String? = null
 )
 
 @HiltViewModel
@@ -60,16 +62,34 @@ class QrCodeViewModel @Inject constructor(
         }
     }
 
-    fun onAccountNumberChange(value: String) = _uiState.update { it.copy(accountNumber = value, qrBitmap = null) }
-    fun onPhoneChange(value: String) = _uiState.update { it.copy(phone = value, qrBitmap = null) }
+    fun onAccountNumberChange(value: String) = _uiState.update { it.copy(accountNumber = value, qrBitmap = null, accountNumberError = null) }
+    fun onPhoneChange(value: String) = _uiState.update { it.copy(phone = value, qrBitmap = null, phoneError = null) }
     fun onHolderNameChange(value: String) = _uiState.update { it.copy(holderName = value, qrBitmap = null) }
 
     /**
      * Generates the QR bitmap and persists the data for future sessions.
      * Requirements: 24.2, 24.5
+     * Validates: account number must be exactly 16 digits; phone must start with +53
      */
     fun generateQr() {
         val state = _uiState.value
+        val account = state.accountNumber.trim()
+        val phone = state.phone.trim()
+
+        // Validate account number: exactly 16 digits
+        val accountError = when {
+            account.length != 16 -> "La cuenta debe tener exactamente 16 dígitos"
+            !account.all { it.isDigit() } -> "La cuenta solo puede contener dígitos"
+            else -> null
+        }
+        // Validate phone: must start with +53
+        val phoneError = if (!phone.startsWith("+53")) "El teléfono debe empezar por +53" else null
+
+        if (accountError != null || phoneError != null) {
+            _uiState.update { it.copy(accountNumberError = accountError, phoneError = phoneError) }
+            return
+        }
+
         val data = PaymentQrData(
             accountNumber = state.accountNumber.trim(),
             phone = state.phone.trim(),

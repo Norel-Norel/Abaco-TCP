@@ -41,6 +41,7 @@ android {
     }
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
@@ -117,6 +118,8 @@ dependencies {
     implementation(libs.coil.compose)
 
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
 
 
     // Testing

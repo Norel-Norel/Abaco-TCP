@@ -1,17 +1,10 @@
 package com.osnordev.abaco.ui
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DrawerValue
@@ -19,9 +12,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -33,16 +27,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.osnordev.abaco.ui.navigation.AppNavHost
-import com.osnordev.abaco.ui.navigation.BottomNavBar
 import com.osnordev.abaco.ui.navigation.Screen
 import com.osnordev.abaco.ui.theme.AbacoTheme
 import kotlinx.coroutines.launch
@@ -55,7 +47,6 @@ fun MainScaffold(
     val navController = rememberNavController()
     val activeModules by viewModel.activeModules.collectAsState()
     val isDarkThemePref by viewModel.isDarkTheme.collectAsState()
-    val isNotificationsEnabled by viewModel.isNotificationsEnabled.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
     val showPinSetup by viewModel.showPinSetup.collectAsState()
     val systemDark = isSystemInDarkTheme()
@@ -63,10 +54,17 @@ fun MainScaffold(
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-    val isDrawerOpen = drawerState.isOpen
+
+    // Track current route for drawer item highlighting
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    // Settings panel state (profile, theme, PIN)
+    var showSettingsPanel by remember { mutableStateOf(false) }
+    val isNotificationsEnabled by viewModel.isNotificationsEnabled.collectAsState()
 
     AbacoTheme(darkTheme = isDark) {
-        // PIN setup dialog — shown when user enables PIN from the drawer
+        // PIN setup dialog
         if (showPinSetup) {
             PinSetupDialog(
                 onDismiss = { viewModel.onPinSetupDismissed() },
@@ -74,23 +72,59 @@ fun MainScaffold(
             )
         }
 
-        Box(modifier = Modifier.fillMaxSize()) {
+        // Settings panel (right-side overlay for profile/theme/PIN)
+        if (showSettingsPanel) {
+            SettingsPanelDialog(
+                isDarkTheme = isDark,
+                isPinEnabled = viewModel.pinEnabled,
+                isNotificationsEnabled = isNotificationsEnabled,
+                userProfile = userProfile,
+                onThemeToggle = { viewModel.setDarkTheme(it) },
+                onPinToggle = { viewModel.togglePin() },
+                onNotificationsToggle = { viewModel.setNotificationsEnabled(it) },
+                onProfileSave = { viewModel.saveProfile(it) },
+                onDismiss = { showSettingsPanel = false }
+            )
+        }
+
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            drawerContent = {
+                ModalDrawerSheet {
+                    AppDrawerContent(
+                        currentRoute = currentRoute,
+                        userProfile = userProfile,
+                        onNavigate = { screen ->
+                            navController.navigate(screen.route) {
+                                popUpTo(Screen.Dashboard.route) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                            scope.launch { drawerState.close() }
+                        }
+                    )
+                }
+            }
+        ) {
             Scaffold(
                 topBar = {
                     TopAppBar(
-                        title = { Text("Ábaco") },
-                        actions = {
-                            // Opens the right-side settings drawer (Req 13.2)
+                        title = {
+                            Text(
+                                text = drawerItems.find { it.screen.route == currentRoute }?.label ?: "Ábaco",
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                        },
+                        navigationIcon = {
                             IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                                Icon(Icons.Filled.Menu, contentDescription = "Configuración")
+                                Icon(Icons.Filled.Menu, contentDescription = "Menú")
+                            }
+                        },
+                        actions = {
+                            IconButton(onClick = { showSettingsPanel = true }) {
+                                Icon(Icons.Filled.AccountCircle, contentDescription = "Perfil y configuración")
                             }
                         }
-                    )
-                },
-                bottomBar = {
-                    BottomNavBar(
-                        navController = navController,
-                        activeModules = activeModules
                     )
                 }
             ) { innerPadding ->
@@ -99,56 +133,6 @@ fun MainScaffold(
                     activeModules = activeModules,
                     modifier = Modifier.padding(innerPadding)
                 )
-            }
-
-            // Scrim — dims the background when drawer is open (Req 13.5)
-            AnimatedVisibility(
-                visible = isDrawerOpen,
-                enter = slideInHorizontally { it },
-                exit = slideOutHorizontally { it }
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.4f))
-                        .clickable { scope.launch { drawerState.close() } }
-                )
-            }
-
-            // Right-side drawer panel (Req 13.2)
-            AnimatedVisibility(
-                visible = isDrawerOpen,
-                modifier = Modifier.align(Alignment.CenterEnd),
-                enter = slideInHorizontally { it },
-                exit = slideOutHorizontally { it }
-            ) {
-                Surface(
-                    modifier = Modifier.fillMaxHeight(),
-                    color = MaterialTheme.colorScheme.surface,
-                    shadowElevation = androidx.compose.ui.unit.Dp(8f)
-                ) {
-                    SettingsDrawerContent(
-                        isDarkTheme = isDark,
-                        isPinEnabled = viewModel.pinEnabled,
-                        isNotificationsEnabled = isNotificationsEnabled,
-                        userProfile = userProfile,
-                        onThemeToggle = { dark -> viewModel.setDarkTheme(dark) },
-                        onPinToggle = {
-                            viewModel.togglePin()
-                            scope.launch { drawerState.close() }
-                        },
-                        onNotificationsToggle = { viewModel.setNotificationsEnabled(it) },
-                        onProfileSave = { viewModel.saveProfile(it) },
-                        onNavigateToSettings = {
-                            navController.navigate(Screen.Settings.route) { launchSingleTop = true }
-                            scope.launch { drawerState.close() }
-                        },
-                        onNavigateToQr = {
-                            navController.navigate(Screen.QrCode.route) { launchSingleTop = true }
-                            scope.launch { drawerState.close() }
-                        }
-                    )
-                }
             }
         }
     }
@@ -170,11 +154,11 @@ private fun PinSetupDialog(
             androidx.compose.foundation.layout.Column(
                 verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
             ) {
-                Text("Elige un PIN de 4 a 6 dígitos para proteger la app.",
+                Text("Elige un PIN de 4 dígitos para proteger la app.",
                     style = MaterialTheme.typography.bodySmall)
                 OutlinedTextField(
                     value = pin,
-                    onValueChange = { if (it.length <= 6 && it.all { c -> c.isDigit() }) { pin = it; error = null } },
+                    onValueChange = { if (it.length <= 4 && it.all { c -> c.isDigit() }) { pin = it; error = null } },
                     label = { Text("PIN") },
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
@@ -182,7 +166,7 @@ private fun PinSetupDialog(
                 )
                 OutlinedTextField(
                     value = confirmPin,
-                    onValueChange = { if (it.length <= 6 && it.all { c -> c.isDigit() }) { confirmPin = it; error = null } },
+                    onValueChange = { if (it.length <= 4 && it.all { c -> c.isDigit() }) { confirmPin = it; error = null } },
                     label = { Text("Confirmar PIN") },
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
