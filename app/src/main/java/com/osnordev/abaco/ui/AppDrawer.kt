@@ -16,12 +16,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Contacts
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Inventory
+import androidx.compose.material.icons.filled.LibraryBooks
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.People
@@ -29,6 +32,7 @@ import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -56,32 +60,37 @@ enum class DrawerGroup { MAIN, ACCOUNTING, MANAGEMENT, OTHER }
 
 val drawerItems = listOf(
     // Principal
-    DrawerItem(Screen.Dashboard,    "Dashboard",         Icons.Filled.Dashboard,      DrawerGroup.MAIN),
-    DrawerItem(Screen.Transactions, "Transacciones",     Icons.Filled.Receipt,        DrawerGroup.MAIN),
-    DrawerItem(Screen.Search,       "Búsqueda",          Icons.Filled.Search,         DrawerGroup.MAIN),
+    DrawerItem(Screen.Principal,        "Principal",          Icons.Filled.Dashboard,      DrawerGroup.MAIN),
+    DrawerItem(Screen.Transactions,     "Transacciones",      Icons.Filled.Receipt,        DrawerGroup.MAIN),
+    DrawerItem(Screen.Search,           "Búsqueda",           Icons.Filled.Search,         DrawerGroup.MAIN),
 
     // Contabilidad
-    DrawerItem(Screen.Journal,      "Asientos Contables",Icons.Filled.MenuBook,       DrawerGroup.ACCOUNTING),
-    DrawerItem(Screen.BalanceSheet, "Balance General",   Icons.Filled.AccountBalance, DrawerGroup.ACCOUNTING),
-    DrawerItem(Screen.Taxes,        "Tributos ONAT",     Icons.Filled.BarChart,       DrawerGroup.ACCOUNTING),
-    DrawerItem(Screen.Reports,      "Reportes",          Icons.Filled.BarChart,       DrawerGroup.ACCOUNTING),
+    DrawerItem(Screen.Journal,          "Asientos Contables", Icons.Filled.MenuBook,       DrawerGroup.ACCOUNTING),
+    DrawerItem(Screen.ChartOfAccounts,  "Plan de Cuentas",    Icons.Filled.AccountTree,    DrawerGroup.ACCOUNTING),
+    DrawerItem(Screen.Ledger,           "Mayor de Cuentas",   Icons.Filled.LibraryBooks,   DrawerGroup.ACCOUNTING),
+    DrawerItem(Screen.BalanceSheet,     "Balance General",    Icons.Filled.AccountBalance, DrawerGroup.ACCOUNTING),
+    DrawerItem(Screen.Periods,          "Períodos y Cierres", Icons.Filled.Today,          DrawerGroup.ACCOUNTING),
+    DrawerItem(Screen.Reports,          "Reportes",           Icons.Filled.BarChart,       DrawerGroup.ACCOUNTING),
+    DrawerItem(Screen.Taxes,            "Tributos ONAT",      Icons.Filled.BarChart,       DrawerGroup.ACCOUNTING),
 
     // Gestión
-    DrawerItem(Screen.Salary,       "Nómina",            Icons.Filled.Payments,       DrawerGroup.MANAGEMENT),
-    DrawerItem(Screen.Inventory,    "Inventario",        Icons.Filled.Inventory,      DrawerGroup.MANAGEMENT),
-    DrawerItem(Screen.Contacts,     "Contactos",         Icons.Filled.Contacts,       DrawerGroup.MANAGEMENT),
-    DrawerItem(Screen.Budgets,      "Presupuestos",      Icons.Filled.CalendarMonth,  DrawerGroup.MANAGEMENT),
-    DrawerItem(Screen.PaymentDues,  "Vencimientos",      Icons.Filled.People,         DrawerGroup.MANAGEMENT),
+    DrawerItem(Screen.Salary,           "Nómina",             Icons.Filled.Payments,       DrawerGroup.MANAGEMENT),
+    DrawerItem(Screen.Inventory,        "Inventario",         Icons.Filled.Inventory,      DrawerGroup.MANAGEMENT),
+    DrawerItem(Screen.Contacts,         "Contactos",          Icons.Filled.Contacts,       DrawerGroup.MANAGEMENT),
+    DrawerItem(Screen.Budgets,          "Presupuestos",       Icons.Filled.CalendarMonth,  DrawerGroup.MANAGEMENT),
+    DrawerItem(Screen.PaymentDues,      "Vencimientos",       Icons.Filled.People,         DrawerGroup.MANAGEMENT),
 
     // Otros
-    DrawerItem(Screen.QrCode,       "QR de Cobro",       Icons.Filled.QrCode,         DrawerGroup.OTHER),
-    DrawerItem(Screen.Settings,     "Configuración",     Icons.Filled.Settings,       DrawerGroup.OTHER),
+    DrawerItem(Screen.QrCode,           "QR de Cobro",        Icons.Filled.QrCode,         DrawerGroup.OTHER),
+    DrawerItem(Screen.Clients,          "Mis Clientes",       Icons.Filled.Business,       DrawerGroup.OTHER),
+    DrawerItem(Screen.Settings,         "Configuración",      Icons.Filled.Settings,       DrawerGroup.OTHER),
 )
 
 @Composable
 fun AppDrawerContent(
     currentRoute: String?,
     userProfile: UserProfile,
+    activeClientName: String? = null,
     onNavigate: (Screen) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -122,7 +131,7 @@ fun AppDrawerContent(
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                     Text(
-                        text = if (userProfile.businessName.isNotBlank()) userProfile.businessName else "Sistema Contable",
+                        text = activeClientName ?: "Sistema Contable",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                     )

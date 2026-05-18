@@ -20,7 +20,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -69,8 +72,20 @@ fun QrCodeScreen(
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             isError = state.accountNumberError != null,
-            supportingText = state.accountNumberError?.let { { Text(it) } },
-            placeholder = { Text("16 dígitos") }
+            supportingText = {
+                val accountNumberError = state.accountNumberError
+                if (accountNumberError != null) {
+                    Text(accountNumberError, color = MaterialTheme.colorScheme.error)
+                } else {
+                    Text("${state.accountNumber.length}/16 dígitos",
+                        color = if (state.accountNumber.length == 16)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
+            placeholder = { Text("Ej: 9226000012345678") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
         )
         OutlinedTextField(
             value = state.phone,
@@ -79,8 +94,17 @@ fun QrCodeScreen(
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             isError = state.phoneError != null,
-            supportingText = state.phoneError?.let { { Text(it) } },
-            placeholder = { Text("+53...") }
+            supportingText = {
+                val phoneError = state.phoneError
+                if (phoneError != null) {
+                    Text(phoneError, color = MaterialTheme.colorScheme.error)
+                } else {
+                    Text("Formato: +53XXXXXXXX",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
+            placeholder = { Text("+53XXXXXXXX") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
         )
         OutlinedTextField(
             value = state.holderName,

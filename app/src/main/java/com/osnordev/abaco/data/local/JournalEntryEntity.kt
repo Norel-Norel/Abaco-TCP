@@ -16,7 +16,10 @@ data class JournalEntryEntity(
     val date: LocalDate,
     val description: String,
     val updatedAt: Long = System.currentTimeMillis(),
-    val syncStatus: String = SyncStatus.PENDING.name
+    val syncStatus: String = SyncStatus.PENDING.name,
+    /** ID del cliente al que pertenece este asiento. DEFAULT 1 para datos legacy. */
+    @androidx.room.ColumnInfo(defaultValue = "1")
+    val clientId: Long = 1L
 )
 
 @Entity(

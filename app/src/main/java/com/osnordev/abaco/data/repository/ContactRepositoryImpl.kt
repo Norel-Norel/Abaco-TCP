@@ -10,7 +10,9 @@ import javax.inject.Inject
 
 interface ContactRepository {
     fun getAll(): Flow<List<ContactEntity>>
+    fun getAllByClient(clientId: Long): Flow<List<ContactEntity>>
     fun search(query: String): Flow<List<ContactEntity>>
+    fun searchByClient(clientId: Long, query: String): Flow<List<ContactEntity>>
     suspend fun getById(id: Long): ContactEntity?
     suspend fun insert(entity: ContactEntity): Long
     suspend fun update(entity: ContactEntity)
@@ -23,7 +25,9 @@ class ContactRepositoryImpl @Inject constructor(
     private val transactionRepository: TransactionRepository
 ) : ContactRepository {
     override fun getAll(): Flow<List<ContactEntity>> = dao.getAll()
+    override fun getAllByClient(clientId: Long): Flow<List<ContactEntity>> = dao.getAllByClient(clientId)
     override fun search(query: String): Flow<List<ContactEntity>> = dao.search(query)
+    override fun searchByClient(clientId: Long, query: String): Flow<List<ContactEntity>> = dao.searchByClient(clientId, query)
     override suspend fun getById(id: Long): ContactEntity? = dao.getById(id)
     override suspend fun insert(entity: ContactEntity): Long = dao.insert(entity)
     override suspend fun update(entity: ContactEntity) = dao.update(entity)

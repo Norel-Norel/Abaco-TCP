@@ -7,6 +7,7 @@ import javax.inject.Inject
 
 interface PaymentDueRepository {
     fun getPending(): Flow<List<PaymentDueEntity>>
+    fun getPendingByClient(clientId: Long): Flow<List<PaymentDueEntity>>
     fun getAll(): Flow<List<PaymentDueEntity>>
     suspend fun insert(entity: PaymentDueEntity): Long
     suspend fun markAsPaid(id: Long)
@@ -20,6 +21,7 @@ class PaymentDueRepositoryImpl @Inject constructor(
 ) : PaymentDueRepository {
 
     override fun getPending(): Flow<List<PaymentDueEntity>> = dao.getPending()
+    override fun getPendingByClient(clientId: Long): Flow<List<PaymentDueEntity>> = dao.getPendingByClient(clientId)
     override fun getAll(): Flow<List<PaymentDueEntity>> = dao.getAll()
     override suspend fun insert(entity: PaymentDueEntity): Long = dao.insert(entity)
     override suspend fun getById(id: Long): PaymentDueEntity? = dao.getById(id)

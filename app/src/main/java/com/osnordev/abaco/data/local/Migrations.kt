@@ -129,6 +129,30 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
     }
 }
 
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS payroll_records (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                employeeName TEXT NOT NULL,
+                ci TEXT NOT NULL,
+                baseSalary REAL NOT NULL DEFAULT 0.0,
+                grossSalary REAL NOT NULL DEFAULT 0.0,
+                cssEmployee REAL NOT NULL DEFAULT 0.0,
+                iipRetained REAL NOT NULL DEFAULT 0.0,
+                netSalary REAL NOT NULL DEFAULT 0.0,
+                cssEmployer REAL NOT NULL DEFAULT 0.0,
+                holidayProvision REAL NOT NULL DEFAULT 0.0,
+                subsidyProvision REAL NOT NULL DEFAULT 0.0,
+                specialSS REAL NOT NULL DEFAULT 0.0,
+                totalCompanyCost REAL NOT NULL DEFAULT 0.0,
+                period TEXT NOT NULL DEFAULT '',
+                createdAt INTEGER NOT NULL DEFAULT 0
+            )
+        """.trimIndent())
+    }
+}
+
 val MIGRATION_3_4 = object : Migration(3, 4) {
     override fun migrate(db: SupportSQLiteDatabase) {
         // Crear tabla del plan de cuentas
@@ -164,5 +188,48 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
         db.execSQL("INSERT OR IGNORE INTO chart_of_accounts VALUES ('81010','Impuesto por ventas','EXPENSE','DEBIT','810',1)")
         db.execSQL("INSERT OR IGNORE INTO chart_of_accounts VALUES ('81030','Impuesto fuerza trabajo','EXPENSE','DEBIT','810',1)")
         db.execSQL("INSERT OR IGNORE INTO chart_of_accounts VALUES ('81040','Impuesto ingresos personales','EXPENSE','DEBIT','810',1)")
+    }
+}
+
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // 1. Crear tabla de clientes
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS clients (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                nombreNegocio TEXT NOT NULL,
+                nit TEXT NOT NULL UNIQUE,
+                direccion TEXT NOT NULL DEFAULT '',
+                logoUri TEXT
+            )
+        """.trimIndent())
+
+        // 2. Insertar cliente por defecto para preservar datos existentes
+        db.execSQL("""
+            INSERT INTO clients (id, nombreNegocio, nit, direccion)
+            VALUES (1, 'Mi Negocio', 'DEFAULT', '')
+        """.trimIndent())
+
+        // 3. Agregar clientId a todas las tablas afectadas
+        db.execSQL("ALTER TABLE transactions        ADD COLUMN clientId INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE journal_entries     ADD COLUMN clientId INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE payment_dues        ADD COLUMN clientId INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE budgets             ADD COLUMN clientId INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE contacts            ADD COLUMN clientId INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE recurring_templates ADD COLUMN clientId INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE inventory_items     ADD COLUMN clientId INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE payroll_records     ADD COLUMN clientId INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE chart_of_accounts   ADD COLUMN clientId INTEGER NOT NULL DEFAULT 1")
+
+        // 4. Crear índices para rendimiento en consultas por clientId
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_transactions_clientId        ON transactions(clientId)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_journal_entries_clientId     ON journal_entries(clientId)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_payment_dues_clientId        ON payment_dues(clientId)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_budgets_clientId             ON budgets(clientId)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_contacts_clientId            ON contacts(clientId)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_recurring_templates_clientId ON recurring_templates(clientId)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_inventory_items_clientId     ON inventory_items(clientId)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_payroll_records_clientId     ON payroll_records(clientId)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_chart_of_accounts_clientId   ON chart_of_accounts(clientId)")
     }
 }

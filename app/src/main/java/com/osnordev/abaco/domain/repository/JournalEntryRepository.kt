@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface JournalEntryRepository {
     fun getAllEntries(): Flow<List<JournalEntryWithLines>>
+    fun getAllEntriesByClient(clientId: Long): Flow<List<JournalEntryWithLines>>
     suspend fun insertEntry(entry: JournalEntryEntity, lines: List<JournalLineEntity>)
     suspend fun deleteEntry(id: Long)
 }

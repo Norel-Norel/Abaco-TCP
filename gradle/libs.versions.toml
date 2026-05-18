@@ -1,10 +1,11 @@
 [versions]
-agp = "9.1.0"
+agp = "9.1.1"
 coreKtx = "1.16.0"
 desugarJdkLibs = "2.1.5"
 junit = "4.13.2"
 junitVersion = "1.2.1"
 espressoCore = "3.6.1"
+kore = "1.0.0-alpha01"
 lifecycleRuntimeKtx = "2.9.1"
 activityCompose = "1.10.1"
 kotlin = "2.3.20"
@@ -54,6 +55,7 @@ hilt-work = { group = "androidx.hilt", name = "hilt-work", version = "1.2.0" }
 hilt-work-compiler = { group = "androidx.hilt", name = "hilt-compiler", version = "1.2.0" }
 
 # Room
+kore = { module = "io.github.dev778g-me:kore", version.ref = "kore" }
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }

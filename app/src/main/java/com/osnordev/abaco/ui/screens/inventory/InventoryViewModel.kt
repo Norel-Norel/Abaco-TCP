@@ -6,11 +6,13 @@ import com.osnordev.abaco.data.local.InventoryItemEntity
 import com.osnordev.abaco.data.local.InventoryMovementEntity
 import com.osnordev.abaco.data.local.InventoryMovementType
 import com.osnordev.abaco.data.repository.InventoryRepository
+import com.osnordev.abaco.domain.client.CurrentClientManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -26,21 +28,34 @@ data class InventoryUiState(
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class InventoryViewModel @Inject constructor(
-    private val repository: InventoryRepository
+    private val repository: InventoryRepository,
+    private val currentClientManager: CurrentClientManager
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery
 
-    val items: StateFlow<List<InventoryItemEntity>> = _searchQuery
-        .flatMapLatest { q ->
-            if (q.isBlank()) repository.getAllItems()
-            else repository.searchItems(q)
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    /** Items filtrados por cliente activo y búsqueda */
+    val items: StateFlow<List<InventoryItemEntity>> =
+        combine(currentClientManager.activeClientId, _searchQuery) { clientId, query ->
+            clientId to query
+        }.flatMapLatest { (clientId, query) ->
+            when {
+                clientId != null && query.isBlank() -> repository.getAllItemsByClient(clientId)
+                clientId != null -> repository.searchItemsByClient(clientId, query)
+                query.isBlank() -> repository.getAllItems()
+                else -> repository.searchItems(query)
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val lowStockItems: StateFlow<List<InventoryItemEntity>> = repository.getLowStockItems()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    /** Items con stock bajo filtrados por cliente activo */
+    val lowStockItems: StateFlow<List<InventoryItemEntity>> =
+        currentClientManager.activeClientId
+            .flatMapLatest { clientId ->
+                if (clientId != null) repository.getLowStockItemsByClient(clientId)
+                else repository.getLowStockItems()
+            }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _uiState = MutableStateFlow(InventoryUiState())
     val uiState: StateFlow<InventoryUiState> = _uiState
@@ -53,10 +68,13 @@ class InventoryViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun saveItem(item: InventoryItemEntity) {
+        val clientId = currentClientManager.activeClientId.value ?: 1L
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, errorMessage = null) }
             try {
-                repository.saveItem(item)
+                // Estampar clientId al crear un item nuevo
+                val itemWithClient = if (item.id == 0L) item.copy(clientId = clientId) else item
+                repository.saveItem(itemWithClient)
                 _uiState.update { it.copy(isSaving = false) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isSaving = false, errorMessage = e.message) }

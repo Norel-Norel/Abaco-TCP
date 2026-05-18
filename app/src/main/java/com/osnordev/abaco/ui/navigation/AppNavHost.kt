@@ -11,7 +11,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.osnordev.abaco.domain.model.AppModule
+import com.osnordev.abaco.ui.screens.accounts.ChartOfAccountsScreen
 import com.osnordev.abaco.ui.screens.balance.BalanceSheetScreen
+import com.osnordev.abaco.ui.screens.ledger.LedgerScreen
+import com.osnordev.abaco.ui.screens.periods.PeriodsScreen
 import com.osnordev.abaco.ui.screens.budget.BudgetScreen
 import com.osnordev.abaco.ui.screens.charts.ChartsScreen
 import com.osnordev.abaco.ui.screens.contacts.ContactFormScreen
@@ -30,6 +33,8 @@ import com.osnordev.abaco.ui.screens.settings.SettingsScreen
 import com.osnordev.abaco.ui.screens.taxes.TaxScreen
 import com.osnordev.abaco.ui.screens.transactions.TransactionFormScreen
 import com.osnordev.abaco.ui.screens.transactions.TransactionListScreen
+import com.osnordev.abaco.ui.screens.clients.ClientListScreen
+import com.osnordev.abaco.ui.screens.clients.ClientFormScreen
 
 private const val SLIDE_DURATION_MS = 350
 
@@ -41,14 +46,14 @@ fun AppNavHost(
 ) {
     NavHost(
         navController = navController,
-        startDestination = Screen.Dashboard.route,
+        startDestination = Screen.Principal.route,
         modifier = modifier,
         enterTransition = { slideInHorizontally(animationSpec = tween(SLIDE_DURATION_MS)) { it } },
         exitTransition = { slideOutHorizontally(animationSpec = tween(SLIDE_DURATION_MS)) { -it } },
         popEnterTransition = { slideInHorizontally(animationSpec = tween(SLIDE_DURATION_MS)) { -it } },
         popExitTransition = { slideOutHorizontally(animationSpec = tween(SLIDE_DURATION_MS)) { it } }
     ) {
-        composable(Screen.Dashboard.route) {
+        composable(Screen.Principal.route) {
             DashboardScreen(
                 showCharts = false,
                 onNavigateToJournal = { navController.navigate(Screen.Journal.route) { launchSingleTop = true } },
@@ -133,6 +138,39 @@ fun AppNavHost(
         ) { backStackEntry ->
             val id = backStackEntry.arguments?.getLong("id")?.takeIf { it != -1L }
             InventoryFormScreen(itemId = id, onNavigateBack = { navController.popBackStack() })
+        }
+
+        // Plan de Cuentas
+        composable(Screen.ChartOfAccounts.route) { ChartOfAccountsScreen() }
+
+        // Mayor de Cuentas
+        composable(Screen.Ledger.route) { LedgerScreen() }
+
+        // Períodos y Cierres
+        composable(Screen.Periods.route) { PeriodsScreen() }
+
+        // Clientes multi-tenant
+        composable(Screen.Clients.route) {
+            ClientListScreen(
+                onAddClient = { navController.navigate(Screen.ClientForm.createRoute()) },
+                onEditClient = { id -> navController.navigate(Screen.ClientForm.createRoute(id)) },
+                onClientSelected = {
+                    navController.navigate(Screen.Principal.route) {
+                        popUpTo(Screen.Principal.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
+        composable(
+            route = Screen.ClientForm.route,
+            arguments = listOf(navArgument("id") { type = NavType.LongType; defaultValue = -1L })
+        ) { backStackEntry ->
+            val id = backStackEntry.arguments?.getLong("id")?.takeIf { it != -1L }
+            ClientFormScreen(
+                clientId = id,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
     }
 }

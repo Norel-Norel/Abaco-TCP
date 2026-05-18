@@ -24,7 +24,9 @@ data class RecurringTemplateEntity(
     val frequency: RecurringFrequency,
     val startDate: LocalDate,
     val nextDate: LocalDate,
-    val isActive: Boolean = true
+    val isActive: Boolean = true,
+    @androidx.room.ColumnInfo(defaultValue = "1")
+    val clientId: Long = 1L
 )
 
 @Dao

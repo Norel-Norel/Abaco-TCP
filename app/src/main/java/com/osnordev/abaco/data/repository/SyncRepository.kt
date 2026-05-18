@@ -31,12 +31,14 @@ data class RemoteTransaction(
     @SerialName("is_recurring") val isRecurring: Boolean = false,
     @SerialName("recurring_id") val recurringId: Long? = null,
     @SerialName("updated_at") val updatedAt: Long,
-    @SerialName("sync_status") val syncStatus: String = "SYNCED"
+    @SerialName("sync_status") val syncStatus: String = "SYNCED",
+    @SerialName("client_id") val clientId: Long = 1L
 )
 
 /**
- * Handles bidirectional sync between Room and Supabase.
+ * Handles bidirectional sync between Room and Supabase for transactions.
  * Conflict resolution: "last write wins" based on [updatedAt].
+ * Each client's data is isolated via [clientId].
  * Requirements: 12.1, 12.4
  */
 @Singleton
@@ -69,7 +71,7 @@ class SyncRepository @Inject constructor(
     }
 
     /**
-     * Pulls remote transactions and merges using last-write-wins on [updatedAt].
+     * Pulls remote transactions for all clients and merges using last-write-wins on [updatedAt].
      * Requirements: 12.1, 12.4
      */
     suspend fun pullRemote() {
@@ -80,7 +82,7 @@ class SyncRepository @Inject constructor(
         remoteList.forEach { remote ->
             val local = transactionDao.getById(remote.id)
             if (local == null || remote.updatedAt > local.updatedAt) {
-                // Remote is newer — upsert locally
+                // Remote is newer — upsert locally preserving clientId
                 transactionDao.insert(remote.toEntity())
             }
             // If local is newer, it will be pushed on next pushPending()
@@ -103,7 +105,8 @@ class SyncRepository @Inject constructor(
         isRecurring = isRecurring,
         recurringId = recurringId,
         updatedAt = updatedAt,
-        syncStatus = "SYNCED"
+        syncStatus = "SYNCED",
+        clientId = clientId
     )
 
     private fun RemoteTransaction.toEntity(): TransactionEntity {
@@ -124,7 +127,8 @@ class SyncRepository @Inject constructor(
             isRecurring = isRecurring,
             recurringId = recurringId,
             updatedAt = updatedAt,
-            syncStatus = SyncStatus.SYNCED.name
+            syncStatus = SyncStatus.SYNCED.name,
+            clientId = clientId  // preservar el clientId del registro remoto
         )
     }
 }

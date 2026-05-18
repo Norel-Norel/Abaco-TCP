@@ -15,6 +15,9 @@ class JournalEntryRepositoryImpl @Inject constructor(
     override fun getAllEntries(): Flow<List<JournalEntryWithLines>> =
         dao.getAllEntriesWithLines()
 
+    override fun getAllEntriesByClient(clientId: Long): Flow<List<JournalEntryWithLines>> =
+        dao.getAllEntriesWithLinesByClient(clientId)
+
     override suspend fun insertEntry(entry: JournalEntryEntity, lines: List<JournalLineEntity>) =
         dao.insertEntryWithLines(entry, lines)
 

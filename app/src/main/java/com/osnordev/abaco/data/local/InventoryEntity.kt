@@ -18,12 +18,14 @@ data class InventoryItemEntity(
     val name: String,
     val description: String = "",
     val category: String = "",
-    val unit: String = "unidad",          // unidad, kg, litro, etc.
+    val unit: String = "unidad",
     val quantity: Double = 0.0,
-    val minStock: Double = 0.0,           // alerta de stock mínimo
-    val costPrice: Double = 0.0,          // precio de costo en CUP
-    val salePrice: Double = 0.0,          // precio de venta en CUP
-    val updatedAt: Long = System.currentTimeMillis()
+    val minStock: Double = 0.0,
+    val costPrice: Double = 0.0,
+    val salePrice: Double = 0.0,
+    val updatedAt: Long = System.currentTimeMillis(),
+    @androidx.room.ColumnInfo(defaultValue = "1")
+    val clientId: Long = 1L
 )
 
 @Entity(tableName = "inventory_movements")
@@ -44,14 +46,23 @@ interface InventoryDao {
     @Query("SELECT * FROM inventory_items ORDER BY name ASC")
     fun getAllItems(): Flow<List<InventoryItemEntity>>
 
+    @Query("SELECT * FROM inventory_items WHERE clientId = :clientId ORDER BY name ASC")
+    fun getAllItemsByClient(clientId: Long): Flow<List<InventoryItemEntity>>
+
     @Query("SELECT * FROM inventory_items WHERE id = :id")
     suspend fun getItemById(id: Long): InventoryItemEntity?
 
     @Query("SELECT * FROM inventory_items WHERE quantity <= minStock AND minStock > 0 ORDER BY name ASC")
     fun getLowStockItems(): Flow<List<InventoryItemEntity>>
 
+    @Query("SELECT * FROM inventory_items WHERE clientId = :clientId AND quantity <= minStock AND minStock > 0 ORDER BY name ASC")
+    fun getLowStockItemsByClient(clientId: Long): Flow<List<InventoryItemEntity>>
+
     @Query("SELECT * FROM inventory_items WHERE name LIKE '%' || :query || '%' OR category LIKE '%' || :query || '%' ORDER BY name ASC")
     fun searchItems(query: String): Flow<List<InventoryItemEntity>>
+
+    @Query("SELECT * FROM inventory_items WHERE clientId = :clientId AND (name LIKE '%' || :query || '%' OR category LIKE '%' || :query || '%') ORDER BY name ASC")
+    fun searchItemsByClient(clientId: Long, query: String): Flow<List<InventoryItemEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertItem(item: InventoryItemEntity): Long

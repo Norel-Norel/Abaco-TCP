@@ -14,8 +14,16 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE year = :year AND month = :month ORDER BY date DESC")
     fun getByPeriod(year: Int, month: Int): Flow<List<TransactionEntity>>
 
+    /** Filtrado por cliente activo */
+    @Query("SELECT * FROM transactions WHERE clientId = :clientId AND year = :year AND month = :month ORDER BY date DESC")
+    fun getByPeriodAndClient(clientId: Long, year: Int, month: Int): Flow<List<TransactionEntity>>
+
     @Query("SELECT * FROM transactions ORDER BY date DESC")
     fun getAll(): Flow<List<TransactionEntity>>
+
+    /** Filtrado por cliente activo */
+    @Query("SELECT * FROM transactions WHERE clientId = :clientId ORDER BY date DESC")
+    fun getAllByClient(clientId: Long): Flow<List<TransactionEntity>>
 
     @Query("SELECT * FROM transactions ORDER BY date DESC")
     suspend fun getAllSync(): List<TransactionEntity>

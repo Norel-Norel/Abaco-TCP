@@ -1,7 +1,7 @@
 package com.osnordev.abaco.ui.navigation
 
 sealed class Screen(val route: String) {
-    data object Dashboard : Screen("dashboard")
+    data object Principal : Screen("principal")
     data object Transactions : Screen("transactions")
     data object TransactionForm : Screen("transaction_form?id={id}") {
         fun createRoute(id: Long? = null) =
@@ -23,5 +23,15 @@ sealed class Screen(val route: String) {
     data object InventoryForm : Screen("inventory_form?id={id}") {
         fun createRoute(id: Long? = null) =
             if (id != null) "inventory_form?id=$id" else "inventory_form"
+    }
+    // Nuevas pantallas
+    data object ChartOfAccounts : Screen("chart_of_accounts")
+    data object Ledger : Screen("ledger")
+    data object Periods : Screen("periods")
+    // Clientes multi-tenant
+    data object Clients : Screen("clients")
+    data object ClientForm : Screen("client_form?id={id}") {
+        fun createRoute(id: Long? = null) =
+            if (id != null) "client_form?id=$id" else "client_form"
     }
 }

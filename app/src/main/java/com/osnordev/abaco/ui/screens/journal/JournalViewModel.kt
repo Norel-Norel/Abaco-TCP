@@ -6,6 +6,7 @@ import com.osnordev.abaco.data.local.ChartOfAccountDao
 import com.osnordev.abaco.data.local.JournalEntryEntity
 import com.osnordev.abaco.data.local.JournalEntryWithLines
 import com.osnordev.abaco.data.local.JournalLineEntity
+import com.osnordev.abaco.domain.client.CurrentClientManager
 import com.osnordev.abaco.domain.model.AccountType
 import com.osnordev.abaco.domain.usecase.GetJournalEntriesUseCase
 import com.osnordev.abaco.domain.usecase.InsertJournalEntryUseCase
@@ -52,7 +53,8 @@ data class JournalFormUiState(
 class JournalViewModel @Inject constructor(
     private val getEntries: GetJournalEntriesUseCase,
     private val insertEntry: InsertJournalEntryUseCase,
-    private val chartOfAccountDao: ChartOfAccountDao
+    private val chartOfAccountDao: ChartOfAccountDao,
+    private val currentClientManager: CurrentClientManager
 ) : ViewModel() {
 
     val entries: StateFlow<List<JournalEntryWithLines>> = getEntries()
@@ -65,21 +67,17 @@ class JournalViewModel @Inject constructor(
     fun onDateChange(v: LocalDate) = _form.update { it.copy(date = v) }
 
     /**
-     * Busca cuentas en la BD del plan de cuentas.
-     * Si la BD está vacía (instalación nueva sin migrar aún), devuelve lista vacía.
+     * Busca cuentas en la BD del plan de cuentas, filtradas por cliente activo.
      */
     suspend fun getSuggestions(query: String): List<AccountSuggestion> {
-        val results = if (query.isBlank()) {
-            chartOfAccountDao.search("")
+        val clientId = currentClientManager.activeClientId.value
+        val results = if (clientId != null) {
+            chartOfAccountDao.searchByClient(clientId, query.ifBlank { "" })
         } else {
-            chartOfAccountDao.search(query)
+            chartOfAccountDao.search(query.ifBlank { "" })
         }
         return results.map { acc ->
-            AccountSuggestion(
-                code = acc.code,
-                name = acc.name,
-                type = acc.type
-            )
+            AccountSuggestion(code = acc.code, name = acc.name, type = acc.type)
         }
     }
 

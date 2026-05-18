@@ -6,6 +6,7 @@ import com.osnordev.abaco.data.local.BudgetEntity
 import com.osnordev.abaco.data.repository.BudgetRepository
 import com.osnordev.abaco.domain.calculator.BudgetCheckResult
 import com.osnordev.abaco.domain.calculator.BudgetChecker
+import com.osnordev.abaco.domain.client.CurrentClientManager
 import com.osnordev.abaco.domain.model.TransactionType
 import com.osnordev.abaco.domain.repository.TransactionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,7 +29,8 @@ data class BudgetUiState(
 @HiltViewModel
 class BudgetViewModel @Inject constructor(
     private val budgetRepository: BudgetRepository,
-    private val transactionRepository: TransactionRepository
+    private val transactionRepository: TransactionRepository,
+    private val currentClientManager: CurrentClientManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BudgetUiState())
@@ -40,10 +42,11 @@ class BudgetViewModel @Inject constructor(
 
     private fun loadBudgets() {
         val state = _uiState.value
+        val clientId = currentClientManager.activeClientId.value ?: 1L
         viewModelScope.launch {
             combine(
-                budgetRepository.getByPeriod(state.month, state.year),
-                transactionRepository.getTransactionsByPeriod(state.year, state.month)
+                budgetRepository.getByPeriodAndClient(clientId, state.month, state.year),
+                transactionRepository.getTransactionsByPeriodAndClient(clientId, state.year, state.month)
             ) { budgets, transactions ->
                 val spentByCategory = transactions
                     .filter { it.type == TransactionType.EXPENSE }
@@ -64,13 +67,15 @@ class BudgetViewModel @Inject constructor(
     fun saveBudget(category: String, limitAmount: Double) {
         viewModelScope.launch {
             val state = _uiState.value
-            val existing = budgetRepository.getByCategory(category, state.month, state.year)
+            val clientId = currentClientManager.activeClientId.value ?: 1L
+            val existing = budgetRepository.getByCategoryAndClient(clientId, category, state.month, state.year)
             val entity = existing?.copy(limitAmount = limitAmount)
                 ?: BudgetEntity(
                     category = category,
                     limitAmount = limitAmount,
                     month = state.month,
-                    year = state.year
+                    year = state.year,
+                    clientId = clientId
                 )
             budgetRepository.save(entity)
         }

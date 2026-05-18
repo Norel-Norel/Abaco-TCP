@@ -18,7 +18,9 @@ data class ContactEntity(
     val phone: String,
     val type: ContactType,
     val notes: String = "",
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    @androidx.room.ColumnInfo(defaultValue = "1")
+    val clientId: Long = 1L
 )
 
 @Dao
@@ -33,8 +35,14 @@ interface ContactDao {
     @Query("SELECT * FROM contacts ORDER BY name ASC")
     fun getAll(): Flow<List<ContactEntity>>
 
+    @Query("SELECT * FROM contacts WHERE clientId = :clientId ORDER BY name ASC")
+    fun getAllByClient(clientId: Long): Flow<List<ContactEntity>>
+
     @Query("SELECT * FROM contacts WHERE name LIKE '%' || :query || '%' OR phone LIKE '%' || :query || '%' ORDER BY name ASC")
     fun search(query: String): Flow<List<ContactEntity>>
+
+    @Query("SELECT * FROM contacts WHERE clientId = :clientId AND (name LIKE '%' || :query || '%' OR phone LIKE '%' || :query || '%') ORDER BY name ASC")
+    fun searchByClient(clientId: Long, query: String): Flow<List<ContactEntity>>
 
     @Query("SELECT * FROM contacts WHERE id = :id")
     suspend fun getById(id: Long): ContactEntity?

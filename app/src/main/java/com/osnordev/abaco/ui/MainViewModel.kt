@@ -7,12 +7,15 @@ import com.osnordev.abaco.data.repository.PinRepository
 import com.osnordev.abaco.data.repository.ProfileRepository
 import com.osnordev.abaco.data.repository.ThemeRepository
 import com.osnordev.abaco.data.repository.UserProfile
+import com.osnordev.abaco.domain.client.CurrentClientManager
 import com.osnordev.abaco.domain.model.AppModule
+import com.osnordev.abaco.domain.repository.ClientRepository
 import com.osnordev.abaco.domain.repository.ModuleRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -24,7 +27,9 @@ class MainViewModel @Inject constructor(
     private val onboardingRepository: OnboardingRepository,
     private val pinRepository: PinRepository,
     private val themeRepository: ThemeRepository,
-    private val profileRepository: ProfileRepository
+    private val profileRepository: ProfileRepository,
+    private val currentClientManager: CurrentClientManager,
+    private val clientRepository: ClientRepository
 ) : ViewModel() {
 
     val activeModules = moduleRepository.getModuleStates()
@@ -34,6 +39,24 @@ class MainViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = AppModule.entries.toSet()
         )
+
+    /** ID del cliente contable activo. Null si no hay ninguno seleccionado. */
+    val activeClientId = currentClientManager.activeClientId
+
+    /**
+     * Nombre del negocio del cliente activo.
+     * Se usa en el drawer y la toolbar para identificar el contexto contable.
+     */
+    val activeClientName = combine(
+        currentClientManager.activeClientId,
+        clientRepository.getAll()
+    ) { id, clients ->
+        clients.find { it.id == id }?.nombreNegocio
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = null
+    )
 
     /** null = loading, false = not completed, true = completed */
     val onboardingCompleted = onboardingRepository.isCompleted()

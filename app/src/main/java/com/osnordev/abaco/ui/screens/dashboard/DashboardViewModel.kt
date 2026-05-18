@@ -5,10 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.osnordev.abaco.data.local.JournalEntryWithLines
 import com.osnordev.abaco.domain.calculator.BalanceSheet
 import com.osnordev.abaco.domain.calculator.BalanceSheetCalculator
+import com.osnordev.abaco.domain.client.CurrentClientManager
 import com.osnordev.abaco.domain.model.Transaction
 import com.osnordev.abaco.domain.model.TransactionType
 import com.osnordev.abaco.domain.repository.JournalEntryRepository
-import com.osnordev.abaco.domain.usecase.GetTransactionsByPeriodUseCase
+import com.osnordev.abaco.domain.repository.TransactionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -49,8 +50,9 @@ data class DashboardUiState(
 
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
-    private val getTransactionsByPeriod: GetTransactionsByPeriodUseCase,
-    private val journalRepository: JournalEntryRepository
+    private val transactionRepository: TransactionRepository,
+    private val journalRepository: JournalEntryRepository,
+    private val currentClientManager: CurrentClientManager
 ) : ViewModel() {
 
     private val _period = MutableStateFlow(run {
@@ -58,13 +60,16 @@ class DashboardViewModel @Inject constructor(
         now.year to now.monthValue
     })
 
-    val uiState: StateFlow<DashboardUiState> = _period
-        .flatMapLatest { (year, month) ->
-            combine(
-                getTransactionsByPeriod(year, month),
-                journalRepository.getAllEntries()
-            ) { transactions, allEntries ->
-                buildState(year, month, transactions, allEntries)
+    val uiState: StateFlow<DashboardUiState> = currentClientManager.activeClientId
+        .flatMapLatest { clientId ->
+            val id = clientId ?: 1L
+            _period.flatMapLatest { (year, month) ->
+                combine(
+                    transactionRepository.getTransactionsByPeriodAndClient(id, year, month),
+                    journalRepository.getAllEntriesByClient(id)
+                ) { transactions, allEntries ->
+                    buildState(year, month, transactions, allEntries)
+                }
             }
         }
         .stateIn(
@@ -98,16 +103,18 @@ class DashboardViewModel @Inject constructor(
             .map { (cat, list) -> CategoryTotal(cat, list.sumOf { it.amount }) }
             .sortedByDescending { it.total }
 
-        // Balance al final del período actual
         val cutoff = LocalDate.of(year, month, java.time.YearMonth.of(year, month).lengthOfMonth())
         val balanceSheet = BalanceSheetCalculator.calculate(allEntries, cutoff)
 
-        // Balance del mes anterior para calcular variación
         val prevCutoff = cutoff.minusMonths(1)
-            .withDayOfMonth(java.time.YearMonth.of(cutoff.minusMonths(1).year, cutoff.minusMonths(1).month).lengthOfMonth())
+            .withDayOfMonth(
+                java.time.YearMonth.of(
+                    cutoff.minusMonths(1).year,
+                    cutoff.minusMonths(1).month
+                ).lengthOfMonth()
+            )
         val prevBalanceSheet = BalanceSheetCalculator.calculate(allEntries, prevCutoff)
 
-        // Últimos 5 asientos con estado de cuadre
         val recentEntries = allEntries
             .sortedByDescending { it.entry.date }
             .take(5)

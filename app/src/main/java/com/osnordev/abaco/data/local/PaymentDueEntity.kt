@@ -19,9 +19,11 @@ data class PaymentDueEntity(
     val currency: String = Currency.CUP.name,
     val dueDate: LocalDate,
     val isPaid: Boolean = false,
-    val alarmId1: Int? = null,   // 1 día antes
-    val alarmId2: Int? = null,   // día del vencimiento
-    val updatedAt: Long = System.currentTimeMillis()
+    val alarmId1: Int? = null,
+    val alarmId2: Int? = null,
+    val updatedAt: Long = System.currentTimeMillis(),
+    @androidx.room.ColumnInfo(defaultValue = "1")
+    val clientId: Long = 1L
 )
 
 @Dao
@@ -36,8 +38,14 @@ interface PaymentDueDao {
     @Query("SELECT * FROM payment_dues ORDER BY dueDate ASC")
     fun getAll(): Flow<List<PaymentDueEntity>>
 
+    @Query("SELECT * FROM payment_dues WHERE clientId = :clientId ORDER BY dueDate ASC")
+    fun getAllByClient(clientId: Long): Flow<List<PaymentDueEntity>>
+
     @Query("SELECT * FROM payment_dues WHERE isPaid = 0 ORDER BY dueDate ASC")
     fun getPending(): Flow<List<PaymentDueEntity>>
+
+    @Query("SELECT * FROM payment_dues WHERE clientId = :clientId AND isPaid = 0 ORDER BY dueDate ASC")
+    fun getPendingByClient(clientId: Long): Flow<List<PaymentDueEntity>>
 
     @Query("SELECT * FROM payment_dues WHERE id = :id")
     suspend fun getById(id: Long): PaymentDueEntity?

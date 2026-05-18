@@ -16,8 +16,10 @@ import androidx.room.TypeConverters
         InventoryItemEntity::class,
         InventoryMovementEntity::class,
         ChartOfAccountEntity::class,
+        PayrollRecordEntity::class,
+        ClientEntity::class,
     ],
-    version = 4,
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -30,4 +32,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun recurringTemplateDao(): RecurringTemplateDao
     abstract fun inventoryDao(): InventoryDao
     abstract fun chartOfAccountDao(): ChartOfAccountDao
+    abstract fun payrollDao(): PayrollDao
+    abstract fun clientDao(): ClientDao
 }

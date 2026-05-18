@@ -11,12 +11,12 @@ plugins {
 
 android {
     namespace = "com.osnordev.abaco"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.osnordev.abaco"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
@@ -121,7 +121,8 @@ dependencies {
 
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 
-
+    //the Kore library
+    implementation(libs.kore)
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.kotest.runner)

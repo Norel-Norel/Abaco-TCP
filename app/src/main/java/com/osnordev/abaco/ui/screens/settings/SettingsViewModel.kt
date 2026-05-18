@@ -2,9 +2,9 @@ package com.osnordev.abaco.ui.screens.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.osnordev.abaco.data.repository.SyncRepository
 import com.osnordev.abaco.domain.model.AppModule
 import com.osnordev.abaco.domain.model.CurrencyConfig
-import com.osnordev.abaco.domain.model.TaxBracket
 import com.osnordev.abaco.domain.model.TaxConfig
 import com.osnordev.abaco.domain.repository.CurrencyRepository
 import com.osnordev.abaco.domain.repository.ModuleRepository
@@ -21,6 +21,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+enum class SyncState { IDLE, SYNCING, SUCCESS, ERROR }
+
 data class SettingsUiState(
     val taxConfig: TaxConfig = TaxConfig(),
     val moduleStates: Map<AppModule, Boolean> = AppModule.entries.associateWith { true },
@@ -32,20 +34,23 @@ data class SettingsUiState(
     // Currency config
     val mlcToCupInput: String = "1.0",
     val usdToCupInput: String = "1.0",
-    val currencyError: String? = null
+    val currencyError: String? = null,
+    // Sync manual
+    val syncState: SyncState = SyncState.IDLE,
+    val syncError: String? = null
 )
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val taxConfigRepository: TaxConfigRepository,
     private val moduleRepository: ModuleRepository,
-    private val currencyRepository: CurrencyRepository
+    private val currencyRepository: CurrencyRepository,
+    private val syncRepository: SyncRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState
 
-    // Derived state from repositories
     val taxConfig: StateFlow<TaxConfig> = taxConfigRepository.getTaxConfig()
         .stateIn(
             scope = viewModelScope,
@@ -61,7 +66,6 @@ class SettingsViewModel @Inject constructor(
         )
 
     init {
-        // Sync repository data into editable UI state
         viewModelScope.launch {
             combine(taxConfigRepository.getTaxConfig(), moduleRepository.getModuleStates()) { config, modules ->
                 config to modules
@@ -77,38 +81,54 @@ class SettingsViewModel @Inject constructor(
         }
         viewModelScope.launch {
             currencyRepository.getCurrencyConfig().collect { config ->
-                _uiState.update { it.copy(
-                    mlcToCupInput = config.mlcToCup.toString(),
-                    usdToCupInput = config.usdToCup.toString()
-                ) }
+                _uiState.update {
+                    it.copy(
+                        mlcToCupInput = config.mlcToCup.toString(),
+                        usdToCupInput = config.usdToCup.toString()
+                    )
+                }
             }
         }
     }
 
-    // --- CSS Rate ---
+    // ── Sync manual ───────────────────────────────────────────────────────────
+
+    fun syncNow() {
+        if (_uiState.value.syncState == SyncState.SYNCING) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(syncState = SyncState.SYNCING, syncError = null) }
+            try {
+                syncRepository.pushPending()
+                syncRepository.pullRemote()
+                _uiState.update { it.copy(syncState = SyncState.SUCCESS) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(syncState = SyncState.ERROR, syncError = e.message ?: "Error de sincronización") }
+            }
+        }
+    }
+
+    fun resetSyncState() {
+        _uiState.update { it.copy(syncState = SyncState.IDLE, syncError = null) }
+    }
+
+    // ── CSS Rate ──────────────────────────────────────────────────────────────
 
     fun onCssRateInputChange(input: String) {
         val error = if (input.isNotBlank()) validateCssRate(input.toDoubleOrNull()) else null
         _uiState.update { it.copy(cssRateInput = input, cssRateError = error, isSaved = false) }
     }
 
-    // --- IIP Brackets ---
+    // ── IIP Brackets ──────────────────────────────────────────────────────────
 
     fun onBracketRateChange(index: Int, rateInput: String) {
         val ratePercent = rateInput.toDoubleOrNull()
-        // Validate inline: rate must be in [0, 100] as a percentage
-        val rateError = if (ratePercent == null) {
-            "Tasa inválida"
-        } else if (ratePercent < 0.0 || ratePercent > 100.0) {
-            "La tasa debe estar entre 0 y 100"
-        } else null
-
-        val newRateErrors = _uiState.value.bracketRateErrors.toMutableMap()
-        if (rateError != null) {
-            newRateErrors[index] = rateError
-        } else {
-            newRateErrors.remove(index)
+        val rateError = when {
+            ratePercent == null -> "Tasa inválida"
+            ratePercent < 0.0 || ratePercent > 100.0 -> "La tasa debe estar entre 0 y 100"
+            else -> null
         }
+        val newRateErrors = _uiState.value.bracketRateErrors.toMutableMap()
+        if (rateError != null) newRateErrors[index] = rateError else newRateErrors.remove(index)
 
         if (ratePercent != null) {
             val brackets = _uiState.value.taxConfig.iipBrackets.toMutableList()
@@ -139,39 +159,25 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    // --- Module toggles ---
+    // ── Module toggles ────────────────────────────────────────────────────────
 
     fun onModuleToggle(module: AppModule, enabled: Boolean) {
-        viewModelScope.launch {
-            moduleRepository.setModuleEnabled(module, enabled)
-        }
+        viewModelScope.launch { moduleRepository.setModuleEnabled(module, enabled) }
     }
 
-    // --- Save ---
+    // ── Save tax config ───────────────────────────────────────────────────────
 
     fun saveTaxConfig() {
         val state = _uiState.value
-
-        // Validate CSS rate
         val cssPercent = state.cssRateInput.toDoubleOrNull()
         val cssError = validateCssRate(cssPercent)
-        if (cssError != null) {
-            _uiState.update { it.copy(cssRateError = cssError) }
-            return
-        }
-
-        // Block save if any per-bracket rate errors exist
+        if (cssError != null) { _uiState.update { it.copy(cssRateError = cssError) }; return }
         if (state.bracketRateErrors.isNotEmpty()) {
             _uiState.update { it.copy(bracketsError = "Corrija los errores en las tasas de los tramos") }
             return
         }
-
-        // Validate IIP brackets (consecutiveness + rates)
         val bracketsError = validateIipBrackets(state.taxConfig.iipBrackets)
-        if (bracketsError != null) {
-            _uiState.update { it.copy(bracketsError = bracketsError) }
-            return
-        }
+        if (bracketsError != null) { _uiState.update { it.copy(bracketsError = bracketsError) }; return }
 
         val newConfig = state.taxConfig.copy(cssRate = cssPercent!! / 100.0)
         viewModelScope.launch {
@@ -184,7 +190,7 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(isSaved = false) }
     }
 
-    // --- Currency rates ---
+    // ── Currency rates ────────────────────────────────────────────────────────
 
     fun onMlcRateChange(input: String) {
         _uiState.update { it.copy(mlcToCupInput = input, currencyError = null) }

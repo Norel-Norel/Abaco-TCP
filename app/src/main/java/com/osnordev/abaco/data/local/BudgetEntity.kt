@@ -15,7 +15,9 @@ data class BudgetEntity(
     val category: String,
     val limitAmount: Double,
     val month: Int,
-    val year: Int
+    val year: Int,
+    @androidx.room.ColumnInfo(defaultValue = "1")
+    val clientId: Long = 1L
 )
 
 @Dao
@@ -30,8 +32,14 @@ interface BudgetDao {
     @Query("SELECT * FROM budgets WHERE month = :month AND year = :year")
     fun getByPeriod(month: Int, year: Int): Flow<List<BudgetEntity>>
 
+    @Query("SELECT * FROM budgets WHERE clientId = :clientId AND month = :month AND year = :year")
+    fun getByPeriodAndClient(clientId: Long, month: Int, year: Int): Flow<List<BudgetEntity>>
+
     @Query("SELECT * FROM budgets WHERE category = :category AND month = :month AND year = :year LIMIT 1")
     suspend fun getByCategory(category: String, month: Int, year: Int): BudgetEntity?
+
+    @Query("SELECT * FROM budgets WHERE clientId = :clientId AND category = :category AND month = :month AND year = :year LIMIT 1")
+    suspend fun getByCategoryAndClient(clientId: Long, category: String, month: Int, year: Int): BudgetEntity?
 
     @Query("DELETE FROM budgets WHERE id = :id")
     suspend fun delete(id: Long)

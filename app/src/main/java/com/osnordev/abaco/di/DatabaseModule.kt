@@ -8,10 +8,14 @@ import com.osnordev.abaco.data.local.ChartOfAccountDao
 import com.osnordev.abaco.data.local.ContactDao
 import com.osnordev.abaco.data.local.InventoryDao
 import com.osnordev.abaco.data.local.JournalEntryDao
+import com.osnordev.abaco.data.local.ClientDao
 import com.osnordev.abaco.data.local.MIGRATION_1_2
 import com.osnordev.abaco.data.local.MIGRATION_2_3
 import com.osnordev.abaco.data.local.MIGRATION_3_4
+import com.osnordev.abaco.data.local.MIGRATION_4_5
+import com.osnordev.abaco.data.local.MIGRATION_5_6
 import com.osnordev.abaco.data.local.PaymentDueDao
+import com.osnordev.abaco.data.local.PayrollDao
 import com.osnordev.abaco.data.local.RecurringTemplateDao
 import com.osnordev.abaco.data.local.TransactionDao
 import dagger.Module
@@ -45,7 +49,7 @@ object DatabaseModule {
 
         return Room.databaseBuilder(context, AppDatabase::class.java, DB_NAME)
             .openHelperFactory(factory)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
             .fallbackToDestructiveMigration()
             .build()
     }
@@ -68,4 +72,6 @@ object DatabaseModule {
     @Provides fun provideRecurringTemplateDao(db: AppDatabase): RecurringTemplateDao = db.recurringTemplateDao()
     @Provides fun provideInventoryDao(db: AppDatabase): InventoryDao = db.inventoryDao()
     @Provides fun provideChartOfAccountDao(db: AppDatabase): ChartOfAccountDao = db.chartOfAccountDao()
+    @Provides fun providePayrollDao(db: AppDatabase): PayrollDao = db.payrollDao()
+    @Provides fun provideClientDao(db: AppDatabase): ClientDao = db.clientDao()
 }

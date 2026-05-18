@@ -62,8 +62,22 @@ class QrCodeViewModel @Inject constructor(
         }
     }
 
-    fun onAccountNumberChange(value: String) = _uiState.update { it.copy(accountNumber = value, qrBitmap = null, accountNumberError = null) }
-    fun onPhoneChange(value: String) = _uiState.update { it.copy(phone = value, qrBitmap = null, phoneError = null) }
+    fun onAccountNumberChange(value: String) {
+        // Solo dígitos, máximo 16 caracteres
+        val filtered = value.filter { it.isDigit() }.take(16)
+        _uiState.update { it.copy(accountNumber = filtered, qrBitmap = null, accountNumberError = null) }
+    }
+
+    fun onPhoneChange(value: String) {
+        // Permite "+53" seguido de dígitos, máximo 12 caracteres (+53 + 8 dígitos)
+        val filtered = when {
+            value.isEmpty() -> ""
+            value == "+" -> "+"
+            value.startsWith("+") -> "+" + value.drop(1).filter { it.isDigit() }.take(11)
+            else -> value.filter { it.isDigit() }.take(11)
+        }
+        _uiState.update { it.copy(phone = filtered, qrBitmap = null, phoneError = null) }
+    }
     fun onHolderNameChange(value: String) = _uiState.update { it.copy(holderName = value, qrBitmap = null) }
 
     /**

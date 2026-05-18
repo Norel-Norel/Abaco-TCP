@@ -14,9 +14,18 @@ class InventoryRepository @Inject constructor(
 ) {
     fun getAllItems(): Flow<List<InventoryItemEntity>> = dao.getAllItems()
 
+    fun getAllItemsByClient(clientId: Long): Flow<List<InventoryItemEntity>> =
+        dao.getAllItemsByClient(clientId)
+
     fun getLowStockItems(): Flow<List<InventoryItemEntity>> = dao.getLowStockItems()
 
+    fun getLowStockItemsByClient(clientId: Long): Flow<List<InventoryItemEntity>> =
+        dao.getLowStockItemsByClient(clientId)
+
     fun searchItems(query: String): Flow<List<InventoryItemEntity>> = dao.searchItems(query)
+
+    fun searchItemsByClient(clientId: Long, query: String): Flow<List<InventoryItemEntity>> =
+        dao.searchItemsByClient(clientId, query)
 
     fun getMovementsForItem(itemId: Long): Flow<List<InventoryMovementEntity>> =
         dao.getMovementsForItem(itemId)

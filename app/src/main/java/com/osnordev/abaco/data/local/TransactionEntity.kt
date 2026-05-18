@@ -26,7 +26,9 @@ data class TransactionEntity(
     val isRecurring: Boolean = false,
     val recurringId: Long? = null,
     val updatedAt: Long = System.currentTimeMillis(),
-    val syncStatus: String = SyncStatus.PENDING.name
+    val syncStatus: String = SyncStatus.PENDING.name,
+    @androidx.room.ColumnInfo(defaultValue = "1")
+    val clientId: Long = 1L
 ) {
     fun toDomain(): Transaction = Transaction(
         id = id,
@@ -64,7 +66,8 @@ data class TransactionEntity(
             isRecurring = t.isRecurring,
             recurringId = t.recurringId,
             updatedAt = t.updatedAt,
-            syncStatus = t.syncStatus.name
+            syncStatus = t.syncStatus.name,
+            clientId = 1L  // sobreescrito por el repositorio con el cliente activo
         )
     }
 }

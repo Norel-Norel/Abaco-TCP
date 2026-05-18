@@ -22,17 +22,23 @@ interface JournalEntryDao {
         insertLines(lines.map { it.copy(entryId = id) })
     }
 
+    /** Todos los asientos (sin filtro de cliente — uso interno/legacy) */
     @Transaction
     @Query("SELECT * FROM journal_entries ORDER BY date DESC")
     fun getAllEntriesWithLines(): Flow<List<JournalEntryWithLines>>
 
+    /** Asientos filtrados por cliente activo */
+    @Transaction
+    @Query("SELECT * FROM journal_entries WHERE clientId = :clientId ORDER BY date DESC")
+    fun getAllEntriesWithLinesByClient(clientId: Long): Flow<List<JournalEntryWithLines>>
+
     @Transaction
     @Query("""
         SELECT * FROM journal_entries
-        WHERE date BETWEEN :from AND :to
+        WHERE clientId = :clientId AND date BETWEEN :from AND :to
         ORDER BY date DESC
     """)
-    fun getEntriesByPeriod(from: String, to: String): Flow<List<JournalEntryWithLines>>
+    fun getEntriesByPeriodAndClient(clientId: Long, from: String, to: String): Flow<List<JournalEntryWithLines>>
 
     @Transaction
     @Query("SELECT * FROM journal_entries WHERE id = :id")

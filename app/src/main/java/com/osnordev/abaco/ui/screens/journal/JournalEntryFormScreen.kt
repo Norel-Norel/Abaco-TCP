@@ -1,7 +1,6 @@
 package com.osnordev.abaco.ui.screens.journal
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,7 +40,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -51,6 +49,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import java.time.format.DateTimeFormatter
 
 private val DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+
+private fun validateDecimal(input: String): Boolean {
+    if (input.isBlank()) return true
+    val parts = input.split(".")
+    return parts.size <= 2 && (parts.size == 1 || parts[1].length <= 2)
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,7 +87,6 @@ fun JournalEntryFormScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // ── Cabecera ──────────────────────────────────────────────────
             item {
                 Spacer(Modifier.height(4.dp))
                 Row(
@@ -117,7 +120,6 @@ fun JournalEntryFormScreen(
                 )
             }
 
-            // ── Encabezado de tabla ───────────────────────────────────────
             item {
                 HorizontalDivider()
                 Row(
@@ -141,7 +143,6 @@ fun JournalEntryFormScreen(
                 HorizontalDivider()
             }
 
-            // ── Líneas ────────────────────────────────────────────────────
             itemsIndexed(state.lines) { index, line ->
                 LineRow(
                     index = index,
@@ -153,15 +154,13 @@ fun JournalEntryFormScreen(
                     ) { value = viewModel.getSuggestions(line.accountQuery) }.value,
                     onAccountQueryChange = { viewModel.onAccountQueryChange(index, it) },
                     onAccountSelected = { viewModel.onAccountSelected(index, it) },
-                    onSuggestionsHide = { viewModel.onSuggestionsHide(index) },
-                    onPartialChange = { viewModel.onPartialChange(index, it) },
-                    onDebitChange = { viewModel.onDebitChange(index, it) },
-                    onCreditChange = { viewModel.onCreditChange(index, it) },
+                    onPartialChange = { if (validateDecimal(it)) viewModel.onPartialChange(index, it) },
+                    onDebitChange = { if (validateDecimal(it)) viewModel.onDebitChange(index, it) },
+                    onCreditChange = { if (validateDecimal(it)) viewModel.onCreditChange(index, it) },
                     onRemove = { viewModel.removeLine(index) }
                 )
             }
 
-            // ── Agregar línea ─────────────────────────────────────────────
             item {
                 TextButton(
                     onClick = viewModel::addLine,
@@ -173,7 +172,6 @@ fun JournalEntryFormScreen(
                 HorizontalDivider()
             }
 
-            // ── Totales y estado de cuadre ────────────────────────────────
             item {
                 TotalsRow(
                     totalDebit = state.totalDebit,
@@ -183,7 +181,6 @@ fun JournalEntryFormScreen(
                 )
             }
 
-            // ── Error de validación ───────────────────────────────────────
             state.validationError?.let { err ->
                 item {
                     Text(err, color = MaterialTheme.colorScheme.error,
@@ -191,7 +188,6 @@ fun JournalEntryFormScreen(
                 }
             }
 
-            // ── Botones de acción ─────────────────────────────────────────
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
@@ -213,8 +209,6 @@ fun JournalEntryFormScreen(
     }
 }
 
-// ── Fila de línea ─────────────────────────────────────────────────────────────
-
 @Composable
 private fun LineRow(
     index: Int,
@@ -223,7 +217,6 @@ private fun LineRow(
     suggestions: List<AccountSuggestion>,
     onAccountQueryChange: (String) -> Unit,
     onAccountSelected: (AccountSuggestion) -> Unit,
-    onSuggestionsHide: () -> Unit,
     onPartialChange: (String) -> Unit,
     onDebitChange: (String) -> Unit,
     onCreditChange: (String) -> Unit,
@@ -235,7 +228,6 @@ private fun LineRow(
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            // Cuenta con autocompletado
             Box(modifier = Modifier.weight(2.5f)) {
                 OutlinedTextField(
                     value = line.accountQuery,
@@ -270,7 +262,6 @@ private fun LineRow(
                 }
             }
 
-            // Parcial — campo informativo
             OutlinedTextField(
                 value = line.partial,
                 onValueChange = onPartialChange,
@@ -281,7 +272,6 @@ private fun LineRow(
                 textStyle = MaterialTheme.typography.bodySmall
             )
 
-            // Debe — bloqueado si hay Haber
             OutlinedTextField(
                 value = line.debit,
                 onValueChange = onDebitChange,
@@ -293,7 +283,6 @@ private fun LineRow(
                 textStyle = MaterialTheme.typography.bodySmall
             )
 
-            // Haber — bloqueado si hay Debe
             OutlinedTextField(
                 value = line.credit,
                 onValueChange = onCreditChange,
@@ -305,7 +294,6 @@ private fun LineRow(
                 textStyle = MaterialTheme.typography.bodySmall
             )
 
-            // Eliminar
             IconButton(
                 onClick = onRemove,
                 enabled = canRemove,
@@ -323,8 +311,6 @@ private fun LineRow(
         HorizontalDivider()
     }
 }
-
-// ── Totales ───────────────────────────────────────────────────────────────────
 
 @Composable
 private fun TotalsRow(
@@ -370,8 +356,8 @@ private fun TotalsRow(
                     modifier = Modifier.size(18.dp)
                 )
                 Text(
-                    text = if (isBalanced) "BALANCEADO (DIFERENCIA = 0.00)"
-                           else "DIFERENCIA = ${"%.2f".format(Math.abs(difference))}",
+                    text = if (isBalanced) "BALANCEADO (Sincronizado con Supabase)"
+                           else "DIFERENCIA = ${"%.2f".format(Math.abs(difference))} (Sincronización pendiente con Supabase)",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = if (isBalanced) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
